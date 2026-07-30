@@ -21,5 +21,8 @@
     <div name="hammer-block" flex-direction="column" align-items="center">
       <div name="hammer-val" font-size="14" color="#ffaa00" font-weight="bold"></div>
     </div>
+    <div name="shield-block" flex-direction="column" align-items="center">
+      <div name="shield-val" font-size="14" color="#4488ff" font-weight="bold"></div>
+    </div>
   </div>
 </panel>

@@ -5,6 +5,8 @@
       <div name="t1" font-size="13" color="#cccccc">Climb to the top to rescue!</div>
       <div name="t2" font-size="13" color="#cccccc">Avoid or jump over barrels.</div>
       <div name="t3" font-size="13" color="#cccccc">Grab hammers to smash barrels.</div>
+      <div name="t3b" font-size="13" color="#4488ff">Collect shields to block hits!</div>
+      <div name="t3c" font-size="13" color="#ff6600">Watch for fire barrels and springs!</div>
       <div name="spacer" height="4"></div>
       <div name="t4" font-size="14" color="#ffaa00">Keyboard Controls:</div>
       <div name="t5" font-size="12" color="#888888">Arrows/WASD - Move and Climb</div>

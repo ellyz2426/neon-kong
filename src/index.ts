@@ -91,11 +91,43 @@ interface Hammer {
   active: boolean;
 }
 
+interface FireBarrel extends Barrel {
+  isFire: boolean;
+  trailTimer: number;
+}
+
+interface FireTrail {
+  mesh: Mesh;
+  x: number;
+  y: number;
+  life: number;
+  row: number;
+}
+
+interface SpringEnemy {
+  mesh: Group;
+  x: number;
+  y: number;
+  vy: number;
+  platformRow: number;
+  bouncing: boolean;
+  direction: number;
+  bounceTimer: number;
+}
+
+interface Shield {
+  mesh: Group;
+  x: number;
+  y: number;
+  row: number;
+  active: boolean;
+}
+
 interface GameState {
   mode: string;
   difficulty: string;
   scheme: string;
-  status: 'menu' | 'playing' | 'paused' | 'gameover' | 'results';
+  status: 'menu' | 'playing' | 'paused' | 'gameover' | 'results' | 'settings' | 'achievements' | 'stats' | 'tutorial';
   score: number;
   highScore: number;
   lives: number;
@@ -127,6 +159,18 @@ interface GameState {
   barrelsJumped: number;
   levelsCleared: number;
   jumpActive: boolean;
+  // Fire barrels
+  fireBarrels: FireBarrel[];
+  fireTrails: FireTrail[];
+  // Spring enemies
+  springs: SpringEnemy[];
+  // Shield power-up
+  hasShield: boolean;
+  shieldTimer: number;
+  shieldHitsLeft: number;
+  // Screen shake
+  shakeTimer: number;
+  shakeIntensity: number;
   // Career
   careerGames: number;
   careerSmashed: number;
@@ -167,12 +211,20 @@ const ALL_ACHIEVEMENTS = [
   { id: 'career_smash_100', name: 'Barrel Destroyer', desc: 'Smash 100 barrels total' },
   { id: 'career_jump_200', name: 'Jump Master', desc: 'Jump over 200 barrels total' },
   { id: 'perfect_level', name: 'Perfectionist', desc: 'Clear a level smashing every barrel' },
+  { id: 'fire_dodge_5', name: 'Firewalker', desc: 'Dodge 5 fire barrels in one game' },
+  { id: 'spring_jump', name: 'Spring Stomper', desc: 'Jump over a spring enemy' },
+  { id: 'shield_save', name: 'Shield Bearer', desc: 'Block a hit with a shield' },
+  { id: 'survive_60s', name: 'Survivor', desc: 'Survive 60 seconds on a single level' },
+  { id: 'no_hammer', name: 'Pacifist', desc: 'Clear a level without using a hammer' },
 ];
 
 let state: GameState;
 let levelStartTime = 0;
 let levelDeathCount = 0;
 let levelBarrelCount = 0;
+let levelHammerUsed = false;
+let fireBarrelsDodged = 0;
+let springJumped = false;
 let modesPlayed = new Set<string>();
 let kongMesh: Group;
 let playerMesh: Group;
@@ -180,6 +232,9 @@ let hammerMesh: Group | null = null;
 let rescueMesh: Group;
 let barrelGroup: Group;
 let environmentGroup: Group;
+let shieldMesh: Group | null = null;
+let shields: Shield[] = [];
+let cameraBasePos = new Vector3(0, 0, 8);
 
 // Audio
 let audioCtx: AudioContext;
@@ -288,6 +343,42 @@ function playSound(type: string) {
       gain.gain.setValueAtTime(0.1, now);
       gain.gain.linearRampToValueAtTime(0, now + 0.15);
       osc.start(now); osc.stop(now + 0.15);
+      break;
+    case 'fire_sizzle':
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(150, now);
+      osc.frequency.linearRampToValueAtTime(80, now + 0.15);
+      gain.gain.setValueAtTime(0.08, now);
+      gain.gain.linearRampToValueAtTime(0, now + 0.2);
+      osc.start(now); osc.stop(now + 0.2);
+      break;
+    case 'shield_get':
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(400, now);
+      osc.frequency.setValueAtTime(600, now + 0.08);
+      osc.frequency.setValueAtTime(800, now + 0.16);
+      osc.frequency.setValueAtTime(600, now + 0.24);
+      gain.gain.setValueAtTime(0.12, now);
+      gain.gain.linearRampToValueAtTime(0, now + 0.35);
+      osc.start(now); osc.stop(now + 0.35);
+      break;
+    case 'shield_block':
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(300, now);
+      osc.frequency.linearRampToValueAtTime(600, now + 0.08);
+      osc.frequency.linearRampToValueAtTime(200, now + 0.2);
+      gain.gain.setValueAtTime(0.15, now);
+      gain.gain.linearRampToValueAtTime(0, now + 0.25);
+      osc.start(now); osc.stop(now + 0.25);
+      break;
+    case 'spring_bounce':
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(200, now);
+      osc.frequency.linearRampToValueAtTime(500, now + 0.1);
+      osc.frequency.linearRampToValueAtTime(300, now + 0.2);
+      gain.gain.setValueAtTime(0.1, now);
+      gain.gain.linearRampToValueAtTime(0, now + 0.25);
+      osc.start(now); osc.stop(now + 0.25);
       break;
   }
 }
@@ -623,6 +714,40 @@ function createBarrelMesh(scene: import('@iwsdk/core').Scene): Group {
   return group;
 }
 
+function createFireBarrelMesh(scene: import('@iwsdk/core').Scene): Group {
+  const group = new Group();
+  const fireColor = new Color('#ff4400');
+  const fireGlow = new Color('#ff8800');
+
+  const geo = new CylinderGeometry(BARREL_R, BARREL_R, BARREL_R * 1.2, 8);
+  const mat = new MeshStandardMaterial({
+    color: fireColor,
+    emissive: fireGlow,
+    emissiveIntensity: 0.8,
+  });
+  const barrel = new Mesh(geo, mat);
+  barrel.rotation.x = Math.PI / 2;
+  group.add(barrel);
+
+  const edges = new EdgesGeometry(geo);
+  const line = new LineSegments(edges, new LineBasicMaterial({ color: fireGlow }));
+  line.rotation.x = Math.PI / 2;
+  group.add(line);
+
+  // Fire glow sphere
+  const glowGeo = new SphereGeometry(BARREL_R * 1.3, 6, 4);
+  const glowMat = new MeshBasicMaterial({
+    color: fireGlow,
+    transparent: true,
+    opacity: 0.2,
+  });
+  const glow = new Mesh(glowGeo, glowMat);
+  group.add(glow);
+
+  scene.add(group);
+  return group;
+}
+
 // ─── PARTICLE SYSTEM ───
 interface Particle {
   mesh: Mesh;
@@ -811,6 +936,14 @@ function initState(): GameState {
     barrelsJumped: 0,
     levelsCleared: 0,
     jumpActive: false,
+    fireBarrels: [],
+    fireTrails: [],
+    springs: [],
+    hasShield: false,
+    shieldTimer: 0,
+    shieldHitsLeft: 0,
+    shakeTimer: 0,
+    shakeIntensity: 0,
     careerGames: career.careerGames || 0,
     careerSmashed: career.careerSmashed || 0,
     careerJumped: career.careerJumped || 0,
@@ -837,6 +970,17 @@ function startGame() {
   state.levelsCleared = 0;
   state.hasHammer = false;
   state.hammerTimer = 0;
+  state.hasShield = false;
+  state.shieldTimer = 0;
+  state.shieldHitsLeft = 0;
+  state.fireBarrels = [];
+  state.fireTrails = [];
+  state.springs = [];
+  state.shakeTimer = 0;
+  state.shakeIntensity = 0;
+  fireBarrelsDodged = 0;
+  springJumped = false;
+  levelHammerUsed = false;
   state.timeRemaining = 120;
   state.movesRemaining = 200;
   state.careerGames++;
@@ -858,7 +1002,15 @@ function setupLevel() {
   for (const l of state.ladders) scene.remove(l.mesh);
   for (const h of state.hammers) scene.remove(h.mesh);
   for (const b of state.barrels) scene.remove(b.mesh);
+  for (const fb of state.fireBarrels) scene.remove(fb.mesh);
+  for (const ft of state.fireTrails) scene.remove(ft.mesh);
+  for (const sp of state.springs) scene.remove(sp.mesh);
+  for (const sh of shields) scene.remove(sh.mesh);
   state.barrels = [];
+  state.fireBarrels = [];
+  state.fireTrails = [];
+  state.springs = [];
+  shields = [];
 
   const { platforms, ladders, hammers } = generateLevel(state.level);
   state.platforms = platforms;
@@ -890,32 +1042,132 @@ function setupLevel() {
   levelStartTime = performance.now() / 1000;
   levelDeathCount = 0;
   levelBarrelCount = 0;
+  levelHammerUsed = false;
+
+  // Spawn shields on levels 3+
+  if (state.level >= 3) {
+    const shieldRow = 2 + Math.floor(Math.random() * (ROWS - 4));
+    const shieldCol = 1 + Math.floor(Math.random() * (COLS - 2));
+    const sx = (shieldCol - COLS / 2 + 0.5) * CELL;
+    const sy = platforms[shieldRow].y + PLATFORM_H / 2 + 0.25;
+    const sg = new Group();
+    const sGeo = new SphereGeometry(0.18, 8, 6);
+    const sMat = new MeshStandardMaterial({
+      color: new Color('#4488ff'),
+      emissive: new Color('#4488ff'),
+      emissiveIntensity: 0.6,
+      transparent: true,
+      opacity: 0.7,
+    });
+    const sm = new Mesh(sGeo, sMat);
+    sg.add(sm);
+    // Ring around shield
+    const ringGeo = new CylinderGeometry(0.22, 0.22, 0.03, 12);
+    const ringMat = new MeshStandardMaterial({
+      color: new Color('#88bbff'),
+      emissive: new Color('#88bbff'),
+      emissiveIntensity: 0.8,
+    });
+    const ring = new Mesh(ringGeo, ringMat);
+    ring.rotation.x = Math.PI / 2;
+    sg.add(ring);
+    sg.position.set(sx, sy, 0.1);
+    scene.add(sg);
+    shields.push({ mesh: sg, x: sx, y: sy, row: shieldRow, active: true });
+  }
+
+  // Spawn spring enemies on levels 4+
+  if (state.level >= 4) {
+    const springCount = Math.min(2, Math.floor((state.level - 3) / 2) + 1);
+    for (let s = 0; s < springCount; s++) {
+      const springRow = 1 + Math.floor(Math.random() * (ROWS - 3));
+      const springX = (Math.floor(Math.random() * COLS) - COLS / 2 + 0.5) * CELL;
+      const springY = platforms[springRow].y + PLATFORM_H / 2 + 0.2;
+      const sGroup = new Group();
+      // Spring body (coil)
+      const coilGeo = new CylinderGeometry(0.12, 0.15, 0.35, 6);
+      const coilMat = new MeshStandardMaterial({
+        color: new Color('#ff6600'),
+        emissive: new Color('#ff6600'),
+        emissiveIntensity: 0.5,
+      });
+      const coil = new Mesh(coilGeo, coilMat);
+      sGroup.add(coil);
+      // Spring head
+      const headGeo = new SphereGeometry(0.12, 6, 4);
+      const headMat = new MeshStandardMaterial({
+        color: new Color('#ffaa00'),
+        emissive: new Color('#ffaa00'),
+        emissiveIntensity: 0.6,
+      });
+      const head = new Mesh(headGeo, headMat);
+      head.position.set(0, 0.25, 0);
+      sGroup.add(head);
+      // Wireframe
+      const sEdges = new EdgesGeometry(coilGeo);
+      const sLine = new LineSegments(sEdges, new LineBasicMaterial({ color: new Color('#ffaa00') }));
+      sGroup.add(sLine);
+      sGroup.position.set(springX, springY, 0);
+      scene.add(sGroup);
+      state.springs.push({
+        mesh: sGroup,
+        x: springX,
+        y: springY,
+        vy: 0,
+        platformRow: springRow,
+        bouncing: false,
+        direction: Math.random() > 0.5 ? 1 : -1,
+        bounceTimer: 1 + Math.random() * 2,
+      });
+    }
+  }
 }
 
 function spawnBarrel() {
   const scene = (window as any).__nkScene as import('@iwsdk/core').Scene;
-  const mesh = createBarrelMesh(scene);
   const topPlat = state.platforms[ROWS - 1];
   const x = state.kongX;
   const y = topPlat.y + PLATFORM_H / 2 + BARREL_R;
 
-  mesh.position.set(x, y, 0);
-
   const diffMult = state.difficulty === 'insane' ? 1.6 : state.difficulty === 'hard' ? 1.3 : 1.0;
   const direction = Math.random() > 0.5 ? 1 : -1;
 
-  state.barrels.push({
-    mesh,
-    x,
-    y,
-    vx: direction * BARREL_SPEED * diffMult,
-    vy: 0,
-    onPlatform: true,
-    platformRow: ROWS - 1,
-    rolling: true,
-    angle: 0,
-    usedLadders: new Set(),
-  });
+  // Fire barrels appear on levels 2+ with increasing probability
+  const isFire = state.level >= 2 && Math.random() < Math.min(0.35, 0.1 + state.level * 0.04);
+
+  if (isFire) {
+    const mesh = createFireBarrelMesh(scene);
+    mesh.position.set(x, y, 0);
+    state.fireBarrels.push({
+      mesh,
+      x,
+      y,
+      vx: direction * BARREL_SPEED * diffMult * 0.8,
+      vy: 0,
+      onPlatform: true,
+      platformRow: ROWS - 1,
+      rolling: true,
+      angle: 0,
+      usedLadders: new Set(),
+      isFire: true,
+      trailTimer: 0,
+    });
+  } else {
+    const mesh = createBarrelMesh(scene);
+    mesh.position.set(x, y, 0);
+    state.barrels.push({
+      mesh,
+      x,
+      y,
+      vx: direction * BARREL_SPEED * diffMult,
+      vy: 0,
+      onPlatform: true,
+      platformRow: ROWS - 1,
+      rolling: true,
+      angle: 0,
+      usedLadders: new Set(),
+    });
+  }
   levelBarrelCount++;
 }
 
@@ -936,9 +1188,29 @@ function addScore(points: number) {
 }
 
 function playerDeath() {
+  // Shield blocks the hit
+  if (state.hasShield && state.shieldHitsLeft > 0) {
+    state.shieldHitsLeft--;
+    playSound('shield_block');
+    const scene = (window as any).__nkScene as import('@iwsdk/core').Scene;
+    spawnParticles(scene, state.playerX, state.playerY, '#4488ff', 8);
+    checkAchievement('shield_save');
+    if (state.shieldHitsLeft <= 0) {
+      state.hasShield = false;
+    }
+    // Trigger screen shake
+    state.shakeTimer = 0.2;
+    state.shakeIntensity = 0.08;
+    return;
+  }
+
   playSound('death');
   const scene = (window as any).__nkScene as import('@iwsdk/core').Scene;
   spawnParticles(scene, state.playerX, state.playerY, SCHEMES[state.scheme].primary, 15);
+
+  // Screen shake on death
+  state.shakeTimer = 0.4;
+  state.shakeIntensity = 0.15;
 
   state.lives--;
   state.careerDeaths++;
@@ -983,6 +1255,7 @@ function levelClear() {
   const elapsed = performance.now() / 1000 - levelStartTime;
   if (elapsed < 30) checkAchievement('speed_clear');
   if (levelBarrelCount > 0 && state.barrelsSmashed >= levelBarrelCount) checkAchievement('perfect_level');
+  if (!levelHammerUsed) checkAchievement('no_hammer');
 
   if (state.difficulty === 'hard' && state.level === 1) checkAchievement('hard_clear');
   if (state.difficulty === 'insane' && state.level === 1) checkAchievement('insane_clear');
@@ -1088,9 +1361,10 @@ class GameSystem extends createSystem({}) {
   update(delta: number, _time: number) {
     if (state.status !== 'playing') {
       // Hide game objects when not playing
-      playerMesh.visible = state.status !== 'menu';
-      kongMesh.visible = state.status !== 'menu';
-      rescueMesh.visible = state.status !== 'menu';
+      const showObjs = state.status === 'paused' || state.status === 'gameover';
+      playerMesh.visible = showObjs;
+      kongMesh.visible = showObjs;
+      rescueMesh.visible = showObjs;
       return;
     }
 
@@ -1142,6 +1416,11 @@ class GameSystem extends createSystem({}) {
           if (axes.y < -0.3) moveY = -1;
         }
         if (input.getButtonValue?.('Trigger') > 0.5 || input.getButtonValue?.('trigger') > 0.5) jump = true;
+        // B button for pause
+        if (input.getButtonDown?.('B') || input.getButtonDown?.('b')) {
+          if (state.status === 'playing') state.status = 'paused';
+          else if (state.status === 'paused') state.status = 'playing';
+        }
       } catch {}
     }
 
@@ -1262,8 +1541,33 @@ class GameSystem extends createSystem({}) {
         state.hasHammer = true;
         state.hammerTimer = 8;
         state.careerHammers++;
+        levelHammerUsed = true;
         playSound('hammer_get');
         checkAchievement('hammer_collect');
+      }
+    }
+
+    // ─── SHIELD PICKUP ───
+    for (const shield of shields) {
+      if (!shield.active) continue;
+      const dx = state.playerX - shield.x;
+      const dy = state.playerY - shield.y;
+      if (Math.sqrt(dx * dx + dy * dy) < 0.5) {
+        shield.active = false;
+        shield.mesh.visible = false;
+        state.hasShield = true;
+        state.shieldTimer = 15;
+        state.shieldHitsLeft = 2;
+        playSound('shield_get');
+      }
+    }
+
+    // Shield timer
+    if (state.hasShield) {
+      state.shieldTimer -= delta;
+      if (state.shieldTimer <= 0) {
+        state.hasShield = false;
+        state.shieldHitsLeft = 0;
       }
     }
 
@@ -1408,6 +1712,239 @@ class GameSystem extends createSystem({}) {
       }
     }
 
+    // ─── FIRE BARREL UPDATE ───
+    for (let i = state.fireBarrels.length - 1; i >= 0; i--) {
+      const fb = state.fireBarrels[i];
+
+      if (fb.onPlatform) {
+        fb.x += fb.vx * delta;
+        fb.angle += fb.vx * BARREL_ROLL_SPEED * delta;
+
+        // Drop fire trails
+        fb.trailTimer -= delta;
+        if (fb.trailTimer <= 0) {
+          fb.trailTimer = 0.4;
+          const trailGeo = new BoxGeometry(0.3, 0.08, 0.3);
+          const trailMat = new MeshBasicMaterial({
+            color: new Color('#ff4400'),
+            transparent: true,
+            opacity: 0.6,
+          });
+          const trailMesh = new Mesh(trailGeo, trailMat);
+          trailMesh.position.set(fb.x, fb.y - BARREL_R + 0.04, 0.05);
+          scene.add(trailMesh);
+          state.fireTrails.push({
+            mesh: trailMesh,
+            x: fb.x,
+            y: fb.y - BARREL_R + 0.04,
+            life: 4.0,
+            row: fb.platformRow,
+          });
+        }
+
+        const plat = state.platforms[fb.platformRow];
+        if (plat) {
+          const minX = (plat.colStart - COLS / 2 + 0.5) * CELL - CELL * 0.3;
+          const maxX = (plat.colEnd - COLS / 2 + 0.5) * CELL + CELL * 0.3;
+          if (fb.x < minX || fb.x > maxX) {
+            if (fb.platformRow > 0) {
+              fb.onPlatform = false;
+              fb.vy = 0;
+            } else {
+              scene.remove(fb.mesh);
+              state.fireBarrels.splice(i, 1);
+              continue;
+            }
+          }
+        }
+      } else {
+        fb.vy -= GRAVITY * 0.7 * delta;
+        fb.y += fb.vy * delta;
+        fb.x += fb.vx * delta;
+        fb.angle += 5 * delta;
+
+        for (let r = fb.platformRow - 1; r >= 0; r--) {
+          const plat = state.platforms[r];
+          if (fb.y <= plat.y + PLATFORM_H / 2 + BARREL_R && fb.vy < 0) {
+            fb.y = plat.y + PLATFORM_H / 2 + BARREL_R;
+            fb.vy = 0;
+            fb.platformRow = r;
+            fb.onPlatform = true;
+            fb.vx = (Math.random() > 0.5 ? 1 : -1) * BARREL_SPEED * diffMult * 0.8;
+            playSound('fire_sizzle');
+            break;
+          }
+        }
+
+        if (fb.y < -10) {
+          scene.remove(fb.mesh);
+          state.fireBarrels.splice(i, 1);
+          continue;
+        }
+      }
+
+      fb.mesh.position.set(fb.x, fb.y, 0);
+      fb.mesh.rotation.z = fb.angle;
+
+      // Collision with player
+      const dx = state.playerX - fb.x;
+      const dy = state.playerY - fb.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+
+      if (dist < PLAYER_R + BARREL_R) {
+        if (state.hasHammer) {
+          scene.remove(fb.mesh);
+          state.fireBarrels.splice(i, 1);
+          state.barrelsSmashed++;
+          state.careerSmashed++;
+          addScore(500);
+          playSound('smash');
+          spawnParticles(scene, fb.x, fb.y, '#ff4400', 12);
+        } else {
+          playerDeath();
+          if ((state.status as string) === 'gameover') return;
+        }
+      }
+
+      // Jump over fire barrel detection
+      if (!state.playerOnGround && state.playerVY < 0 && fb.onPlatform &&
+          fb.platformRow === state.playerPlatformRow) {
+        const jumpDx = Math.abs(state.playerX - fb.x);
+        const jumpDy = state.playerY - fb.y;
+        if (jumpDx < 0.8 && jumpDy > 0 && jumpDy < 1.5) {
+          if (!(fb as any).__jumped) {
+            (fb as any).__jumped = true;
+            fireBarrelsDodged++;
+            state.barrelsJumped++;
+            state.careerJumped++;
+            addScore(200);
+            if (fireBarrelsDodged >= 5) checkAchievement('fire_dodge_5');
+          }
+        }
+      }
+    }
+
+    // ─── FIRE TRAIL UPDATE ───
+    for (let i = state.fireTrails.length - 1; i >= 0; i--) {
+      const trail = state.fireTrails[i];
+      trail.life -= delta;
+      if (trail.life <= 0) {
+        scene.remove(trail.mesh);
+        (trail.mesh.material as MeshBasicMaterial).dispose();
+        trail.mesh.geometry.dispose();
+        state.fireTrails.splice(i, 1);
+        continue;
+      }
+      (trail.mesh.material as MeshBasicMaterial).opacity = Math.min(0.6, trail.life / 4.0 * 0.6);
+
+      // Player collision with fire trail
+      const dx = Math.abs(state.playerX - trail.x);
+      const dy = Math.abs(state.playerY - trail.y);
+      if (dx < 0.3 && dy < 0.4 && state.playerPlatformRow === trail.row) {
+        playerDeath();
+        if ((state.status as string) === 'gameover') return;
+        scene.remove(trail.mesh);
+        state.fireTrails.splice(i, 1);
+      }
+    }
+
+    // ─── SPRING ENEMY UPDATE ───
+    for (const spring of state.springs) {
+      spring.bounceTimer -= delta;
+      if (spring.bounceTimer <= 0 && !spring.bouncing) {
+        spring.bouncing = true;
+        spring.vy = 4.5;
+        spring.bounceTimer = 2 + Math.random() * 2;
+        playSound('spring_bounce');
+      }
+
+      if (spring.bouncing) {
+        spring.vy -= GRAVITY * 0.6 * delta;
+        spring.y += spring.vy * delta;
+        spring.x += spring.direction * 1.5 * delta;
+
+        // Clamp horizontal
+        const plat = state.platforms[spring.platformRow];
+        if (plat) {
+          const minX = (plat.colStart - COLS / 2 + 0.5) * CELL - CELL * 0.3;
+          const maxX = (plat.colEnd - COLS / 2 + 0.5) * CELL + CELL * 0.3;
+          if (spring.x < minX || spring.x > maxX) {
+            spring.direction *= -1;
+            spring.x = Math.max(minX, Math.min(maxX, spring.x));
+          }
+        }
+
+        // Land
+        const landY = state.platforms[spring.platformRow].y + PLATFORM_H / 2 + 0.2;
+        if (spring.y <= landY && spring.vy < 0) {
+          spring.y = landY;
+          spring.vy = 0;
+          spring.bouncing = false;
+        }
+      }
+
+      spring.mesh.position.set(spring.x, spring.y, 0);
+      // Squash/stretch animation
+      if (spring.bouncing) {
+        const stretchY = 1 + Math.abs(spring.vy) * 0.05;
+        spring.mesh.scale.set(1 / stretchY, stretchY, 1);
+      } else {
+        spring.mesh.scale.set(1, 1, 1);
+      }
+
+      // Collision with player
+      const dx = state.playerX - spring.x;
+      const dy = state.playerY - spring.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < PLAYER_R + 0.2) {
+        if (state.hasHammer) {
+          // Push spring away
+          spring.direction *= -1;
+          spring.bouncing = true;
+          spring.vy = 3;
+          addScore(200);
+          playSound('smash');
+          spawnParticles(scene, spring.x, spring.y, '#ff6600', 8);
+        } else {
+          playerDeath();
+          if ((state.status as string) === 'gameover') return;
+        }
+      }
+
+      // Jump over spring detection
+      if (!state.playerOnGround && state.playerVY < 0 &&
+          spring.platformRow === state.playerPlatformRow) {
+        const jumpDx = Math.abs(state.playerX - spring.x);
+        const jumpDy = state.playerY - spring.y;
+        if (jumpDx < 0.8 && jumpDy > 0 && jumpDy < 1.5 && !(spring as any).__jumped) {
+          (spring as any).__jumped = true;
+          springJumped = true;
+          addScore(150);
+          checkAchievement('spring_jump');
+        }
+      }
+    }
+
+    // ─── SURVIVE TIMER ACHIEVEMENT ───
+    const elapsedLevel = performance.now() / 1000 - levelStartTime;
+    if (elapsedLevel >= 60) checkAchievement('survive_60s');
+
+    // ─── SCREEN SHAKE ───
+    if (state.shakeTimer > 0) {
+      state.shakeTimer -= delta;
+      const shakeX = (Math.random() - 0.5) * state.shakeIntensity * 2;
+      const shakeY = (Math.random() - 0.5) * state.shakeIntensity * 2;
+      const world = (window as any).__nkWorld;
+      if (world?.camera) {
+        world.camera.position.set(cameraBasePos.x + shakeX, cameraBasePos.y + shakeY, cameraBasePos.z);
+      }
+    } else {
+      const world = (window as any).__nkWorld;
+      if (world?.camera && !state.playerClimbing) {
+        world.camera.position.set(cameraBasePos.x, cameraBasePos.y, cameraBasePos.z);
+      }
+    }
+
     // ─── CHECK LEVEL CLEAR ───
     const topPlat = state.platforms[ROWS - 1];
     if (state.playerPlatformRow === ROWS - 1 && state.playerOnGround) {
@@ -1421,10 +1958,24 @@ class GameSystem extends createSystem({}) {
     playerMesh.position.set(state.playerX, state.playerY, 0);
     playerMesh.scale.x = state.playerFacing;
 
-    // Kong animation
+    // Player shield glow effect
+    if (state.hasShield) {
+      // Pulse the player mesh slightly
+      const pulse = 1 + Math.sin(this.kongAnimTimer * 8) * 0.05;
+      playerMesh.scale.y = pulse;
+      playerMesh.scale.z = pulse;
+    } else {
+      playerMesh.scale.y = 1;
+      playerMesh.scale.z = 1;
+    }
+
+    // Kong animation - barrel throwing motion
     this.kongAnimTimer += delta;
     kongMesh.position.y = state.kongY + Math.sin(this.kongAnimTimer * 2) * 0.1;
+    // Kong arm raises when about to throw
+    const throwPhase = state.barrelSpawnTimer < 0.5 ? Math.sin((0.5 - state.barrelSpawnTimer) * Math.PI * 4) * 0.3 : 0;
     kongMesh.rotation.y = Math.sin(this.kongAnimTimer * 0.5) * 0.15;
+    kongMesh.rotation.x = throwPhase;
 
     // Rescue bob
     rescueMesh.position.y = state.rescueY + Math.sin(this.kongAnimTimer * 3) * 0.05;
@@ -1498,9 +2049,13 @@ class UISystem extends createSystem({
       const btnChallenge = this.menuDoc.getElementById('btn-challenge') as UIKit.Text;
       btnChallenge?.addEventListener('click', () => { state.mode = 'challenge'; startGame(); });
       const btnSettings = this.menuDoc.getElementById('btn-settings') as UIKit.Text;
-      btnSettings?.addEventListener('click', () => { state.status = 'menu'; });
+      btnSettings?.addEventListener('click', () => { state.status = 'settings'; });
+      const btnAchievements = this.menuDoc.getElementById('btn-achievements') as UIKit.Text;
+      btnAchievements?.addEventListener('click', () => { state.status = 'achievements'; });
+      const btnStats = this.menuDoc.getElementById('btn-stats') as UIKit.Text;
+      btnStats?.addEventListener('click', () => { state.status = 'stats'; });
       const btnTutorial = this.menuDoc.getElementById('btn-tutorial') as UIKit.Text;
-      btnTutorial?.addEventListener('click', () => { state.status = 'menu'; });
+      btnTutorial?.addEventListener('click', () => { state.status = 'tutorial'; });
     });
 
     // HUD — no buttons, just text updates in update()
@@ -1577,16 +2132,20 @@ class UISystem extends createSystem({
     const isPlaying = state.status === 'playing';
     const isPaused = state.status === 'paused';
     const isGameover = state.status === 'gameover';
+    const isSettings = state.status === 'settings';
+    const isAchievements = state.status === 'achievements';
+    const isStats = state.status === 'stats';
+    const isTutorial = state.status === 'tutorial';
 
     // Panel visibility via transform
     this.queries.menuPanel.entities.forEach(e => { if (e.object3D) e.object3D.scale.set(isMenu ? 2 : 0, isMenu ? 2 : 0, isMenu ? 2 : 0); });
     this.queries.hudPanel.entities.forEach(e => { if (e.object3D) e.object3D.scale.set(isPlaying ? 1.5 : 0, isPlaying ? 1.5 : 0, isPlaying ? 1.5 : 0); });
     this.queries.pausePanel.entities.forEach(e => { if (e.object3D) e.object3D.scale.set(isPaused ? 2 : 0, isPaused ? 2 : 0, isPaused ? 2 : 0); });
     this.queries.resultsPanel.entities.forEach(e => { if (e.object3D) e.object3D.scale.set(isGameover ? 2 : 0, isGameover ? 2 : 0, isGameover ? 2 : 0); });
-    this.queries.settingsPanel.entities.forEach(e => { if (e.object3D) e.object3D.scale.set(isMenu ? 1.5 : 0, isMenu ? 1.5 : 0, isMenu ? 1.5 : 0); });
-    this.queries.achievementsPanel.entities.forEach(e => { if (e.object3D) e.object3D.scale.set(isMenu ? 1.5 : 0, isMenu ? 1.5 : 0, isMenu ? 1.5 : 0); });
-    this.queries.statsPanel.entities.forEach(e => { if (e.object3D) e.object3D.scale.set(isMenu ? 0 : 0, isMenu ? 0 : 0, isMenu ? 0 : 0); });
-    this.queries.tutorialPanel.entities.forEach(e => { if (e.object3D) e.object3D.scale.set(isMenu ? 0 : 0, isMenu ? 0 : 0, isMenu ? 0 : 0); });
+    this.queries.settingsPanel.entities.forEach(e => { if (e.object3D) e.object3D.scale.set(isSettings ? 1.5 : 0, isSettings ? 1.5 : 0, isSettings ? 1.5 : 0); });
+    this.queries.achievementsPanel.entities.forEach(e => { if (e.object3D) e.object3D.scale.set(isAchievements ? 1.5 : 0, isAchievements ? 1.5 : 0, isAchievements ? 1.5 : 0); });
+    this.queries.statsPanel.entities.forEach(e => { if (e.object3D) e.object3D.scale.set(isStats ? 1.5 : 0, isStats ? 1.5 : 0, isStats ? 1.5 : 0); });
+    this.queries.tutorialPanel.entities.forEach(e => { if (e.object3D) e.object3D.scale.set(isTutorial ? 1.5 : 0, isTutorial ? 1.5 : 0, isTutorial ? 1.5 : 0); });
 
     // Update HUD
     if (isPlaying && this.hudDoc) {
@@ -1602,6 +2161,7 @@ class UISystem extends createSystem({
         this.setText(this.hudDoc, 'timer-val', '');
       }
       this.setText(this.hudDoc, 'hammer-val', state.hasHammer ? 'HAMMER ' + Math.ceil(state.hammerTimer) + 's' : '');
+      this.setText(this.hudDoc, 'shield-val', state.hasShield ? 'SHIELD x' + state.shieldHitsLeft : '');
     }
 
     // Update menu high score
@@ -1614,7 +2174,9 @@ class UISystem extends createSystem({
       this.setText(this.resultsDoc, 'final-score', 'Score: ' + state.score);
       this.setText(this.resultsDoc, 'final-level', 'Level: ' + state.level);
       this.setText(this.resultsDoc, 'final-barrels', 'Smashed: ' + state.barrelsSmashed + '  Jumped: ' + state.barrelsJumped);
+      this.setText(this.resultsDoc, 'final-combo', state.careerBestCombo > 1 ? 'Best Combo: ' + state.careerBestCombo + 'x' : '');
       this.setText(this.resultsDoc, 'final-best', 'Best: ' + state.highScore);
+      this.setText(this.resultsDoc, 'new-high', state.score >= state.highScore && state.score > 0 ? 'NEW HIGH SCORE!' : '');
     }
 
     // Update achievements

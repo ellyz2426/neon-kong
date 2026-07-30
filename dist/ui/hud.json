@@ -194,6 +194,30 @@
               "alignItems": "center"
             },
             "dataUid": "uid-16"
+          },
+          {
+            "type": "container",
+            "sourceTag": "div",
+            "children": [
+              {
+                "type": "container",
+                "sourceTag": "div",
+                "children": [],
+                "properties": {
+                  "name": "shield-val",
+                  "fontSize": "14",
+                  "color": "#4488ff",
+                  "fontWeight": "bold"
+                },
+                "dataUid": "uid-19"
+              }
+            ],
+            "properties": {
+              "name": "shield-block",
+              "flexDirection": "column",
+              "alignItems": "center"
+            },
+            "dataUid": "uid-18"
           }
         ],
         "properties": {
@@ -218,7 +242,7 @@
         "column": 0
       },
       "end": {
-        "line": 24,
+        "line": 27,
         "column": 8
       }
     },
@@ -228,7 +252,7 @@
         "column": 2
       },
       "end": {
-        "line": 23,
+        "line": 26,
         "column": 8
       }
     },
@@ -379,6 +403,26 @@
       },
       "end": {
         "line": 21,
+        "column": 85
+      }
+    },
+    "uid-18": {
+      "start": {
+        "line": 23,
+        "column": 4
+      },
+      "end": {
+        "line": 25,
+        "column": 10
+      }
+    },
+    "uid-19": {
+      "start": {
+        "line": 24,
+        "column": 6
+      },
+      "end": {
+        "line": 24,
         "column": 85
       }
     }

@@ -10,6 +10,8 @@
     <div name="btn-challenge" font-size="18" color="#ffaa00" background-color="#332200" border-radius="10" padding="10" width="280" hover-opacity="0.7">CHALLENGE (200 moves)</div>
     <div name="spacer2" height="4"></div>
     <div name="btn-settings" font-size="14" color="#888888" hover-opacity="0.7">Settings</div>
+    <div name="btn-achievements" font-size="14" color="#ffaa00" hover-opacity="0.7">Achievements</div>
+    <div name="btn-stats" font-size="14" color="#888888" hover-opacity="0.7">Stats</div>
     <div name="btn-tutorial" font-size="14" color="#888888" hover-opacity="0.7">How to Play</div>
   </div>
 </panel>
