@@ -1,0 +1,8 @@
+<panel>
+  <div name="pause-root" background-color="#000a15" border-radius="20" padding="24" width="350" flex-direction="column" align-items="center" gap="14">
+    <div name="pause-title" font-size="28" color="#ffaa00" font-weight="bold">PAUSED</div>
+    <div name="spacer" height="8"></div>
+    <div name="btn-resume" font-size="18" color="#00ffff" background-color="#003344" border-radius="10" padding="10" width="240" hover-opacity="0.7">RESUME</div>
+    <div name="btn-quit" font-size="18" color="#ff4444" background-color="#330011" border-radius="10" padding="10" width="240" hover-opacity="0.7">QUIT TO MENU</div>
+  </div>
+</panel>

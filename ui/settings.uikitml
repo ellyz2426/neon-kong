@@ -1,0 +1,19 @@
+<panel>
+  <div name="settings-root" background-color="#000a15" border-radius="20" padding="20" width="360" flex-direction="column" align-items="center" gap="10">
+    <div name="settings-title" font-size="22" color="#00ffff" font-weight="bold">SETTINGS</div>
+    <div name="color-label" font-size="14" color="#888888">Color Scheme</div>
+    <div name="color-row" flex-direction="row" gap="8">
+      <div name="btn-cyan" font-size="13" color="#00ffff" background-color="#003344" border-radius="8" padding="8" hover-opacity="0.7">Cyan</div>
+      <div name="btn-green" font-size="13" color="#00ff88" background-color="#003322" border-radius="8" padding="8" hover-opacity="0.7">Green</div>
+      <div name="btn-magenta" font-size="13" color="#ff00ff" background-color="#330033" border-radius="8" padding="8" hover-opacity="0.7">Magenta</div>
+      <div name="btn-gold" font-size="13" color="#ffaa00" background-color="#332200" border-radius="8" padding="8" hover-opacity="0.7">Gold</div>
+    </div>
+    <div name="diff-label" font-size="14" color="#888888">Difficulty</div>
+    <div name="diff-row" flex-direction="row" gap="8">
+      <div name="btn-normal" font-size="13" color="#00ff88" background-color="#003322" border-radius="8" padding="8" hover-opacity="0.7">Normal</div>
+      <div name="btn-hard" font-size="13" color="#ffaa00" background-color="#332200" border-radius="8" padding="8" hover-opacity="0.7">Hard</div>
+      <div name="btn-insane" font-size="13" color="#ff4444" background-color="#330011" border-radius="8" padding="8" hover-opacity="0.7">Insane</div>
+    </div>
+    <div name="btn-back" font-size="14" color="#888888" hover-opacity="0.7">Back</div>
+  </div>
+</panel>

@@ -1,0 +1,27 @@
+<panel>
+  <div name="tut-root" background-color="#000a15" border-radius="20" padding="20" width="400" flex-direction="column" align-items="center" gap="8">
+    <div name="tut-title" font-size="22" color="#00ffff" font-weight="bold">HOW TO PLAY</div>
+    <div name="tut-body" flex-direction="column" gap="6" width="360">
+      <div name="t1" font-size="13" color="#cccccc">Climb to the top to rescue!</div>
+      <div name="t2" font-size="13" color="#cccccc">Avoid or jump over barrels.</div>
+      <div name="t3" font-size="13" color="#cccccc">Grab hammers to smash barrels.</div>
+      <div name="spacer" height="4"></div>
+      <div name="t4" font-size="14" color="#ffaa00">Keyboard Controls:</div>
+      <div name="t5" font-size="12" color="#888888">Arrows/WASD - Move and Climb</div>
+      <div name="t6" font-size="12" color="#888888">Space/F - Jump</div>
+      <div name="t7" font-size="12" color="#888888">Esc/P - Pause</div>
+      <div name="spacer2" height="4"></div>
+      <div name="t8" font-size="14" color="#ffaa00">VR Controls:</div>
+      <div name="t9" font-size="12" color="#888888">Thumbstick - Move and Climb</div>
+      <div name="t10" font-size="12" color="#888888">Trigger/A - Jump</div>
+      <div name="t11" font-size="12" color="#888888">B - Pause</div>
+      <div name="spacer3" height="4"></div>
+      <div name="t12" font-size="14" color="#ffaa00">Game Modes:</div>
+      <div name="t13" font-size="12" color="#888888">Arcade - Classic play with 3 lives</div>
+      <div name="t14" font-size="12" color="#888888">Speed - Clear levels in 120 seconds</div>
+      <div name="t15" font-size="12" color="#888888">Zen - 99 lives, relax and climb</div>
+      <div name="t16" font-size="12" color="#888888">Challenge - Only 200 moves</div>
+    </div>
+    <div name="btn-tut-back" font-size="14" color="#888888" hover-opacity="0.7">Back</div>
+  </div>
+</panel>

@@ -1,0 +1,25 @@
+<panel>
+  <div name="hud-root" flex-direction="row" justify-content="space-between" width="600" padding="8" gap="16">
+    <div name="score-block" flex-direction="column" align-items="center">
+      <div name="score-label" font-size="10" color="#888888">SCORE</div>
+      <div name="score-val" font-size="20" color="#00ffff" font-weight="bold">0</div>
+    </div>
+    <div name="lives-block" flex-direction="column" align-items="center">
+      <div name="lives-label" font-size="10" color="#888888">LIVES</div>
+      <div name="lives-val" font-size="20" color="#ff4444" font-weight="bold">x3</div>
+    </div>
+    <div name="level-block" flex-direction="column" align-items="center">
+      <div name="level-label" font-size="10" color="#888888">LEVEL</div>
+      <div name="level-val" font-size="20" color="#ffaa00" font-weight="bold">LV 1</div>
+    </div>
+    <div name="combo-block" flex-direction="column" align-items="center">
+      <div name="combo-val" font-size="18" color="#ff00ff" font-weight="bold"></div>
+    </div>
+    <div name="timer-block" flex-direction="column" align-items="center">
+      <div name="timer-val" font-size="16" color="#00ff88"></div>
+    </div>
+    <div name="hammer-block" flex-direction="column" align-items="center">
+      <div name="hammer-val" font-size="14" color="#ffaa00" font-weight="bold"></div>
+    </div>
+  </div>
+</panel>
