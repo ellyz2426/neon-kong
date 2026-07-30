@@ -11,6 +11,10 @@
       <div name="t3e" font-size="13" color="#ff2200">Beware ladder patrols (level 6+)!</div>
       <div name="t3f" font-size="13" color="#ffff00">Lightning bolts give speed boosts!</div>
       <div name="t3g" font-size="13" color="#ffaa00">Conveyor belts push you (level 5+)!</div>
+      <div name="t3h" font-size="13" color="#88ccff">Collect rivets for big bonus points!</div>
+      <div name="t3i" font-size="13" color="#ff44ff">Warp portals teleport you (level 4+)!</div>
+      <div name="t3j" font-size="13" color="#ff3366">Hearts give an extra life (rare)!</div>
+      <div name="t3k" font-size="13" color="#ff8844">Orange platforms crumble (level 7+)!</div>
       <div name="spacer" height="4"></div>
       <div name="t4" font-size="14" color="#ffaa00">Keyboard Controls:</div>
       <div name="t5" font-size="12" color="#888888">Arrows/WASD - Move and Climb</div>

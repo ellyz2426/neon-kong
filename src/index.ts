@@ -174,6 +174,43 @@ interface Afterimage {
   maxLife: number;
 }
 
+interface Rivet {
+  mesh: Group;
+  x: number;
+  y: number;
+  row: number;
+  collected: boolean;
+  bobTimer: number;
+}
+
+interface CrumblingPlatform {
+  row: number;
+  timer: number;
+  maxTimer: number;
+  crumbling: boolean;
+  originalOpacity: number;
+}
+
+interface WarpPortal {
+  mesh: Group;
+  x: number;
+  y: number;
+  row: number;
+  pairIdx: number; // index of paired portal
+  cooldown: number;
+  spinTimer: number;
+}
+
+interface ExtraLife {
+  mesh: Group;
+  x: number;
+  y: number;
+  row: number;
+  active: boolean;
+  bobTimer: number;
+  pulseTimer: number;
+}
+
 interface GameState {
   mode: string;
   difficulty: string;
@@ -227,6 +264,8 @@ interface GameState {
   speedBoostTimer: number;
   // Conveyor belts
   conveyorBelts: ConveyorBelt[];
+  // Crumbling platforms
+  crumblingPlatforms: CrumblingPlatform[];
   // Career
   careerGames: number;
   careerSmashed: number;
@@ -282,6 +321,11 @@ const ALL_ACHIEVEMENTS = [
   { id: 'conveyor_survive', name: 'Belt Runner', desc: 'Survive 3 conveyor belt levels' },
   { id: 'combo_no_break', name: 'Relentless', desc: 'Keep a combo going for 10 seconds' },
   { id: 'score_100k', name: 'Neon God', desc: 'Score 100,000 points' },
+  { id: 'rivet_collect', name: 'Riveter', desc: 'Collect your first rivet' },
+  { id: 'rivet_all', name: 'Master Builder', desc: 'Collect all rivets on a level' },
+  { id: 'crumble_survive', name: 'Floor is Lava', desc: 'Survive 3 crumbling platforms' },
+  { id: 'warp_use', name: 'Portal Jumper', desc: 'Use a warp portal' },
+  { id: 'extra_life', name: 'Second Wind', desc: 'Collect an extra life' },
 ];
 
 let state: GameState;
@@ -310,6 +354,12 @@ let conveyorLevelsSurvived = 0;
 let comboStartTime = 0;
 let speedBoosts: SpeedBoost[] = [];
 let afterimages: Afterimage[] = [];
+let rivets: Rivet[] = [];
+let warpPortals: WarpPortal[] = [];
+let extraLives: ExtraLife[] = [];
+let rivetsCollectedLevel = 0;
+let rivetsOnLevel = 0;
+let crumblePlatformsSurvived = 0;
 let cameraBasePos = new Vector3(0, 0, 8);
 
 // Audio
@@ -492,6 +542,44 @@ function playSound(type: string) {
       gain.gain.setValueAtTime(0.04, now);
       gain.gain.linearRampToValueAtTime(0, now + 0.2);
       osc.start(now); osc.stop(now + 0.2);
+      break;
+    case 'rivet_collect':
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(600, now);
+      osc.frequency.setValueAtTime(800, now + 0.06);
+      osc.frequency.setValueAtTime(1000, now + 0.12);
+      osc.frequency.setValueAtTime(1200, now + 0.18);
+      gain.gain.setValueAtTime(0.14, now);
+      gain.gain.linearRampToValueAtTime(0, now + 0.3);
+      osc.start(now); osc.stop(now + 0.3);
+      break;
+    case 'crumble':
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(200, now);
+      osc.frequency.linearRampToValueAtTime(60, now + 0.3);
+      gain.gain.setValueAtTime(0.12, now);
+      gain.gain.linearRampToValueAtTime(0, now + 0.35);
+      osc.start(now); osc.stop(now + 0.35);
+      break;
+    case 'warp':
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(300, now);
+      osc.frequency.linearRampToValueAtTime(1200, now + 0.15);
+      osc.frequency.linearRampToValueAtTime(600, now + 0.3);
+      gain.gain.setValueAtTime(0.12, now);
+      gain.gain.linearRampToValueAtTime(0, now + 0.4);
+      osc.start(now); osc.stop(now + 0.4);
+      break;
+    case 'extra_life':
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(500, now);
+      osc.frequency.setValueAtTime(700, now + 0.1);
+      osc.frequency.setValueAtTime(900, now + 0.2);
+      osc.frequency.setValueAtTime(1100, now + 0.3);
+      osc.frequency.setValueAtTime(1400, now + 0.4);
+      gain.gain.setValueAtTime(0.15, now);
+      gain.gain.linearRampToValueAtTime(0, now + 0.55);
+      osc.start(now); osc.stop(now + 0.55);
       break;
   }
 }
@@ -1196,6 +1284,7 @@ function initState(): GameState {
     hasSpeedBoost: false,
     speedBoostTimer: 0,
     conveyorBelts: [],
+    crumblingPlatforms: [],
     careerGames: career.careerGames || 0,
     careerSmashed: career.careerSmashed || 0,
     careerJumped: career.careerJumped || 0,
@@ -1233,6 +1322,7 @@ function startGame() {
   state.hasSpeedBoost = false;
   state.speedBoostTimer = 0;
   state.conveyorBelts = [];
+  state.crumblingPlatforms = [];
   fireBarrelsDodged = 0;
   springJumped = false;
   levelHammerUsed = false;
@@ -1240,6 +1330,9 @@ function startGame() {
   conveyorLevelsSurvived = 0;
   comboStartTime = 0;
   patrolsPassed = 0;
+  rivetsCollectedLevel = 0;
+  rivetsOnLevel = 0;
+  crumblePlatformsSurvived = 0;
   state.timeRemaining = 120;
   state.movesRemaining = 200;
   state.careerGames++;
@@ -1268,6 +1361,9 @@ function setupLevel() {
   for (const bi of bonusItems) scene.remove(bi.mesh);
   for (const lp of ladderPatrols) scene.remove(lp.mesh);
   for (const sb of speedBoosts) scene.remove(sb.mesh);
+  for (const rv of rivets) scene.remove(rv.mesh);
+  for (const wp of warpPortals) scene.remove(wp.mesh);
+  for (const el of extraLives) scene.remove(el.mesh);
   for (const ai of afterimages) { scene.remove(ai.mesh); ai.mesh.geometry.dispose(); (ai.mesh.material as MeshBasicMaterial).dispose(); }
   // Clean up conveyor arrows
   for (const cb of state.conveyorBelts) { for (const am of cb.arrowMeshes) { scene.remove(am); am.geometry.dispose(); (am.material as MeshBasicMaterial).dispose(); } }
@@ -1283,6 +1379,10 @@ function setupLevel() {
   scorePopups = [];
   speedBoosts = [];
   afterimages = [];
+  rivets = [];
+  warpPortals = [];
+  extraLives = [];
+  rivetsCollectedLevel = 0;
 
   const { platforms, ladders, hammers } = generateLevel(state.level);
   state.platforms = platforms;
@@ -1517,6 +1617,187 @@ function setupLevel() {
     boostGroup.position.set(bx, by, 0.1);
     scene.add(boostGroup);
     speedBoosts.push({ mesh: boostGroup, x: bx, y: by, row: boostRow, active: true, bobTimer: Math.random() * Math.PI * 2 });
+  }
+
+  // ─── RIVETS (level 2+) ───
+  if (state.level >= 2) {
+    const rivetCount = Math.min(4, 1 + Math.floor(state.level / 3));
+    rivetsOnLevel = rivetCount;
+    const usedPositions = new Set<string>();
+    for (let r = 0; r < rivetCount; r++) {
+      let row: number, col: number;
+      let posKey: string;
+      do {
+        row = 1 + Math.floor(Math.random() * (ROWS - 2));
+        col = 1 + Math.floor(Math.random() * (COLS - 2));
+        posKey = row + ',' + col;
+      } while (usedPositions.has(posKey));
+      usedPositions.add(posKey);
+
+      const rx = (col - COLS / 2 + 0.5) * CELL;
+      const ry = platforms[row].y + PLATFORM_H / 2 + 0.15;
+
+      const rivetGroup = new Group();
+      // Bolt body
+      const boltGeo = new CylinderGeometry(0.06, 0.06, 0.12, 6);
+      const boltMat = new MeshStandardMaterial({
+        color: new Color('#88ccff'),
+        emissive: new Color('#88ccff'),
+        emissiveIntensity: 0.7,
+      });
+      const boltMesh = new Mesh(boltGeo, boltMat);
+      rivetGroup.add(boltMesh);
+      // Bolt head
+      const headGeo = new CylinderGeometry(0.1, 0.1, 0.04, 6);
+      const headMat = new MeshStandardMaterial({
+        color: new Color('#aaddff'),
+        emissive: new Color('#aaddff'),
+        emissiveIntensity: 0.9,
+      });
+      const headMesh = new Mesh(headGeo, headMat);
+      headMesh.position.y = 0.08;
+      rivetGroup.add(headMesh);
+      // Wireframe
+      const rivetEdges = new EdgesGeometry(headGeo);
+      const rivetLine = new LineSegments(rivetEdges, new LineBasicMaterial({ color: new Color('#ccddff') }));
+      rivetLine.position.y = 0.08;
+      rivetGroup.add(rivetLine);
+
+      rivetGroup.position.set(rx, ry, 0.12);
+      scene.add(rivetGroup);
+      rivets.push({ mesh: rivetGroup, x: rx, y: ry, row, collected: false, bobTimer: Math.random() * Math.PI * 2 });
+    }
+  }
+
+  // ─── CRUMBLING PLATFORMS (level 7+) ───
+  if (state.level >= 7) {
+    const crumbleCount = Math.min(2, Math.floor((state.level - 6) / 2) + 1);
+    const usedRows = new Set<number>([0, ROWS - 1]); // never crumble bottom/top
+    for (let c = 0; c < crumbleCount; c++) {
+      const candidates = [];
+      for (let r = 1; r < ROWS - 1; r++) {
+        if (!usedRows.has(r)) candidates.push(r);
+      }
+      if (candidates.length === 0) break;
+      const row = candidates[Math.floor(Math.random() * candidates.length)];
+      usedRows.add(row);
+      
+      const platMat = platforms[row].mesh.material as MeshStandardMaterial;
+      state.crumblingPlatforms.push({
+        row,
+        timer: 0,
+        maxTimer: 2.5 - Math.min(0.8, state.level * 0.05), // faster crumble at higher levels
+        crumbling: false,
+        originalOpacity: platMat.opacity,
+      });
+      
+      // Tint crumbling platforms with a warning color
+      platMat.color.set(new Color('#ff8844'));
+      platMat.emissive.set(new Color('#ff6622'));
+      platMat.emissiveIntensity = 0.4;
+    }
+  }
+
+  // ─── WARP PORTALS (level 4+) ───
+  if (state.level >= 4) {
+    // Create one pair of portals
+    const rowA = 1 + Math.floor(Math.random() * Math.floor((ROWS - 2) / 2));
+    const rowB = rowA + 2 + Math.floor(Math.random() * (ROWS - rowA - 3));
+    const colA = 1 + Math.floor(Math.random() * (COLS - 2));
+    const colB = 1 + Math.floor(Math.random() * (COLS - 2));
+    
+    const portalPositions = [
+      { row: Math.min(rowA, ROWS - 2), col: colA },
+      { row: Math.min(rowB, ROWS - 2), col: colB },
+    ];
+
+    for (let pi = 0; pi < 2; pi++) {
+      const pp = portalPositions[pi];
+      const px = (pp.col - COLS / 2 + 0.5) * CELL;
+      const py = platforms[pp.row].y + PLATFORM_H / 2 + 0.3;
+
+      const portalGroup = new Group();
+      // Outer ring
+      const ringGeo = new CylinderGeometry(0.22, 0.22, 0.04, 12);
+      const ringColor = pi === 0 ? '#ff44ff' : '#44ffff';
+      const ringMat = new MeshStandardMaterial({
+        color: new Color(ringColor),
+        emissive: new Color(ringColor),
+        emissiveIntensity: 0.8,
+        transparent: true,
+        opacity: 0.8,
+      });
+      const ring = new Mesh(ringGeo, ringMat);
+      ring.rotation.x = Math.PI / 2;
+      portalGroup.add(ring);
+      // Inner glow
+      const innerGeo = new SphereGeometry(0.14, 8, 6);
+      const innerMat = new MeshBasicMaterial({
+        color: new Color(ringColor),
+        transparent: true,
+        opacity: 0.35,
+      });
+      const inner = new Mesh(innerGeo, innerMat);
+      portalGroup.add(inner);
+      // Wireframe ring
+      const portalEdges = new EdgesGeometry(ringGeo);
+      const portalLine = new LineSegments(portalEdges, new LineBasicMaterial({ color: new Color(ringColor) }));
+      portalLine.rotation.x = Math.PI / 2;
+      portalGroup.add(portalLine);
+
+      portalGroup.position.set(px, py, 0.15);
+      scene.add(portalGroup);
+      warpPortals.push({
+        mesh: portalGroup,
+        x: px,
+        y: py,
+        row: pp.row,
+        pairIdx: pi === 0 ? 1 : 0,
+        cooldown: 0,
+        spinTimer: Math.random() * Math.PI * 2,
+      });
+    }
+  }
+
+  // ─── EXTRA LIFE (level 5+, rare) ───
+  if (state.level >= 5 && Math.random() < 0.4) {
+    const lifeRow = 2 + Math.floor(Math.random() * (ROWS - 4));
+    const lifeCol = Math.floor(Math.random() * (COLS - 2)) + 1;
+    const lx = (lifeCol - COLS / 2 + 0.5) * CELL;
+    const ly = platforms[lifeRow].y + PLATFORM_H / 2 + 0.25;
+
+    const lifeGroup = new Group();
+    // Heart shape using two spheres and a box
+    const heartMat = new MeshStandardMaterial({
+      color: new Color('#ff3366'),
+      emissive: new Color('#ff3366'),
+      emissiveIntensity: 0.8,
+    });
+    const lobe1 = new Mesh(new SphereGeometry(0.08, 6, 4), heartMat);
+    lobe1.position.set(-0.05, 0.04, 0);
+    lifeGroup.add(lobe1);
+    const lobe2 = new Mesh(new SphereGeometry(0.08, 6, 4), heartMat);
+    lobe2.position.set(0.05, 0.04, 0);
+    lifeGroup.add(lobe2);
+    const bodyGeo = new BoxGeometry(0.14, 0.1, 0.1);
+    const body = new Mesh(bodyGeo, heartMat);
+    body.rotation.z = Math.PI / 4;
+    body.position.set(0, -0.02, 0);
+    body.scale.set(0.8, 0.8, 0.8);
+    lifeGroup.add(body);
+    // Glow
+    const glowGeo = new SphereGeometry(0.16, 6, 4);
+    const glowMat = new MeshBasicMaterial({
+      color: new Color('#ff3366'),
+      transparent: true,
+      opacity: 0.2,
+    });
+    const glow = new Mesh(glowGeo, glowMat);
+    lifeGroup.add(glow);
+
+    lifeGroup.position.set(lx, ly, 0.12);
+    scene.add(lifeGroup);
+    extraLives.push({ mesh: lifeGroup, x: lx, y: ly, row: lifeRow, active: true, bobTimer: Math.random() * Math.PI * 2, pulseTimer: 0 });
   }
 
   // Update music tension for new level
@@ -2522,6 +2803,167 @@ class GameSystem extends createSystem({}) {
             if (patrolsPassed >= 3) checkAchievement('patrol_dodge');
           }
         }
+      }
+    }
+
+    // ─── RIVET COLLECTION ───
+    for (let i = rivets.length - 1; i >= 0; i--) {
+      const rv = rivets[i];
+      if (rv.collected) continue;
+      rv.bobTimer += delta * 4;
+      rv.mesh.position.y = rv.y + Math.sin(rv.bobTimer) * 0.04;
+      rv.mesh.rotation.y += delta * 3;
+
+      const dx = state.playerX - rv.x;
+      const dy = state.playerY - rv.y;
+      if (Math.sqrt(dx * dx + dy * dy) < 0.5 && state.playerPlatformRow === rv.row) {
+        rv.collected = true;
+        rv.mesh.visible = false;
+        scene.remove(rv.mesh);
+        rivets.splice(i, 1);
+        rivetsCollectedLevel++;
+        addScore(400);
+        playSound('rivet_collect');
+        spawnParticles(scene, rv.x, rv.y, '#88ccff', 10);
+        spawnScorePopup(scene, rv.x, rv.y, 400);
+        checkAchievement('rivet_collect');
+        if (rivetsCollectedLevel >= rivetsOnLevel && rivetsOnLevel > 0) {
+          checkAchievement('rivet_all');
+          // Bonus for collecting all rivets
+          addScore(1000);
+          spawnScorePopup(scene, state.playerX, state.playerY + 0.5, 1000);
+        }
+      }
+    }
+
+    // ─── CRUMBLING PLATFORMS ───
+    for (const cp of state.crumblingPlatforms) {
+      const plat = state.platforms[cp.row];
+      if (!plat) continue;
+      const platMat = plat.mesh.material as MeshStandardMaterial;
+
+      if (state.playerPlatformRow === cp.row && state.playerOnGround) {
+        // Player is standing on this crumbling platform
+        if (!cp.crumbling) {
+          cp.crumbling = true;
+          cp.timer = 0;
+        }
+        cp.timer += delta;
+
+        // Visual warning: fade and shake
+        const progress = cp.timer / cp.maxTimer;
+        platMat.opacity = cp.originalOpacity * (1 - progress * 0.7);
+        plat.mesh.position.x += (Math.random() - 0.5) * progress * 0.04;
+
+        if (cp.timer >= cp.maxTimer) {
+          // Platform crumbles!
+          playSound('crumble');
+          spawnParticles(scene, plat.mesh.position.x, plat.y, '#ff8844', 12);
+          platMat.opacity = 0.1;
+          platMat.emissiveIntensity = 0.1;
+
+          // Player falls
+          if (state.playerPlatformRow === cp.row) {
+            state.playerOnGround = false;
+            state.playerVY = -1;
+            // Fall to platform below
+            if (cp.row > 0) {
+              state.playerPlatformRow = cp.row - 1;
+            }
+            crumblePlatformsSurvived++;
+            if (crumblePlatformsSurvived >= 3) checkAchievement('crumble_survive');
+          }
+          // Regenerate platform after a delay (mark for regen)
+          cp.timer = -3.0; // negative means regenerating
+          cp.crumbling = false;
+        }
+      } else if (cp.crumbling) {
+        // Player left the platform, reset timer slowly
+        cp.timer = Math.max(0, cp.timer - delta * 0.5);
+        if (cp.timer <= 0) {
+          cp.crumbling = false;
+          platMat.opacity = cp.originalOpacity;
+        } else {
+          const progress = cp.timer / cp.maxTimer;
+          platMat.opacity = cp.originalOpacity * (1 - progress * 0.7);
+        }
+      } else if (cp.timer < 0) {
+        // Regenerating
+        cp.timer += delta;
+        if (cp.timer >= 0) {
+          cp.timer = 0;
+          platMat.opacity = cp.originalOpacity;
+          platMat.emissiveIntensity = 0.4;
+        } else {
+          // Gradually restore opacity during regen
+          const regenProgress = 1 - Math.abs(cp.timer) / 3.0;
+          platMat.opacity = 0.1 + regenProgress * (cp.originalOpacity - 0.1);
+        }
+      }
+    }
+
+    // ─── WARP PORTALS ───
+    for (const wp of warpPortals) {
+      wp.spinTimer += delta * 3;
+      wp.mesh.rotation.y = wp.spinTimer;
+      // Pulsing glow
+      const pulseScale = 1 + Math.sin(wp.spinTimer * 2) * 0.1;
+      wp.mesh.scale.set(pulseScale, pulseScale, pulseScale);
+
+      if (wp.cooldown > 0) {
+        wp.cooldown -= delta;
+        wp.mesh.children[1].visible = wp.cooldown <= 0; // hide inner glow when on cooldown
+        continue;
+      }
+
+      const dx = state.playerX - wp.x;
+      const dy = state.playerY - wp.y;
+      if (Math.sqrt(dx * dx + dy * dy) < 0.5 && state.playerPlatformRow === wp.row && state.playerOnGround) {
+        // Teleport to paired portal
+        const target = warpPortals[wp.pairIdx];
+        if (target && target.cooldown <= 0) {
+          spawnParticles(scene, state.playerX, state.playerY, '#ff44ff', 10);
+          state.playerX = target.x;
+          state.playerY = target.y + 0.1;
+          state.playerPlatformRow = target.row;
+          state.playerOnGround = true;
+          state.playerVY = 0;
+          state.playerClimbing = false;
+          playSound('warp');
+          spawnParticles(scene, target.x, target.y, '#44ffff', 10);
+          // Set cooldown on both portals
+          wp.cooldown = 3;
+          target.cooldown = 3;
+          checkAchievement('warp_use');
+          addScore(50);
+        }
+      }
+    }
+
+    // ─── EXTRA LIFE PICKUP ───
+    for (let i = extraLives.length - 1; i >= 0; i--) {
+      const el = extraLives[i];
+      if (!el.active) continue;
+      el.bobTimer += delta * 3;
+      el.pulseTimer += delta * 4;
+      el.mesh.position.y = el.y + Math.sin(el.bobTimer) * 0.08;
+      el.mesh.rotation.y += delta * 2;
+      // Heartbeat pulse
+      const pulse = 1 + Math.sin(el.pulseTimer) * 0.15;
+      el.mesh.scale.set(pulse, pulse, pulse);
+
+      const dx = state.playerX - el.x;
+      const dy = state.playerY - el.y;
+      if (Math.sqrt(dx * dx + dy * dy) < 0.5 && state.playerPlatformRow === el.row) {
+        el.active = false;
+        el.mesh.visible = false;
+        scene.remove(el.mesh);
+        extraLives.splice(i, 1);
+        state.lives++;
+        playSound('extra_life');
+        spawnParticles(scene, el.x, el.y, '#ff3366', 15);
+        spawnScorePopup(scene, el.x, el.y, 0);
+        checkAchievement('extra_life');
       }
     }
 
