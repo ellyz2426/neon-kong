@@ -123,6 +123,34 @@ interface Shield {
   active: boolean;
 }
 
+interface BonusItem {
+  mesh: Group;
+  x: number;
+  y: number;
+  row: number;
+  points: number;
+  life: number;
+  bobTimer: number;
+  collected: boolean;
+}
+
+interface LadderPatrol {
+  mesh: Group;
+  ladderIdx: number;
+  y: number;
+  direction: number;
+  speed: number;
+}
+
+interface ScorePopup {
+  mesh: Mesh;
+  x: number;
+  y: number;
+  vy: number;
+  life: number;
+  maxLife: number;
+}
+
 interface GameState {
   mode: string;
   difficulty: string;
@@ -216,6 +244,11 @@ const ALL_ACHIEVEMENTS = [
   { id: 'shield_save', name: 'Shield Bearer', desc: 'Block a hit with a shield' },
   { id: 'survive_60s', name: 'Survivor', desc: 'Survive 60 seconds on a single level' },
   { id: 'no_hammer', name: 'Pacifist', desc: 'Clear a level without using a hammer' },
+  { id: 'bonus_5', name: 'Gem Collector', desc: 'Collect 5 bonus gems in one game' },
+  { id: 'bonus_15', name: 'Treasure Hunter', desc: 'Collect 15 bonus gems total' },
+  { id: 'patrol_dodge', name: 'Ladder Ninja', desc: 'Pass 3 ladder patrols without dying' },
+  { id: 'level_15', name: 'Apex Climber', desc: 'Reach level 15' },
+  { id: 'score_50k', name: 'Neon Legend', desc: 'Score 50,000 points' },
 ];
 
 let state: GameState;
@@ -234,6 +267,12 @@ let barrelGroup: Group;
 let environmentGroup: Group;
 let shieldMesh: Group | null = null;
 let shields: Shield[] = [];
+let bonusItems: BonusItem[] = [];
+let ladderPatrols: LadderPatrol[] = [];
+let scorePopups: ScorePopup[] = [];
+let bonusCollectedGame = 0;
+let bonusCollectedTotal = 0;
+let patrolsPassed = 0;
 let cameraBasePos = new Vector3(0, 0, 8);
 
 // Audio
@@ -380,6 +419,25 @@ function playSound(type: string) {
       gain.gain.linearRampToValueAtTime(0, now + 0.25);
       osc.start(now); osc.stop(now + 0.25);
       break;
+    case 'bonus_collect':
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(700, now);
+      osc.frequency.setValueAtTime(900, now + 0.06);
+      osc.frequency.setValueAtTime(1100, now + 0.12);
+      osc.frequency.setValueAtTime(1400, now + 0.18);
+      gain.gain.setValueAtTime(0.12, now);
+      gain.gain.linearRampToValueAtTime(0, now + 0.3);
+      osc.start(now); osc.stop(now + 0.3);
+      break;
+    case 'patrol_warn':
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(180, now);
+      osc.frequency.setValueAtTime(220, now + 0.1);
+      osc.frequency.setValueAtTime(180, now + 0.2);
+      gain.gain.setValueAtTime(0.06, now);
+      gain.gain.linearRampToValueAtTime(0, now + 0.25);
+      osc.start(now); osc.stop(now + 0.25);
+      break;
   }
 }
 
@@ -420,6 +478,7 @@ function stopMusic() {
 function loadCareer(): Partial<GameState> {
   try {
     const d = JSON.parse(localStorage.getItem('neon-kong-career') || '{}');
+    bonusCollectedTotal = d.bonusCollectedTotal || 0;
     return {
       careerGames: d.careerGames || 0,
       careerSmashed: d.careerSmashed || 0,
@@ -450,6 +509,7 @@ function saveCareer() {
       careerBestCombo: state.careerBestCombo,
       highScore: state.highScore,
       achievements: Array.from(state.achievements),
+      bonusCollectedTotal,
     }));
   } catch {}
 }
@@ -799,6 +859,124 @@ function updateParticles(scene: import('@iwsdk/core').Scene, delta: number) {
   }
 }
 
+// ─── SCORE POPUPS ───
+function spawnScorePopup(scene: import('@iwsdk/core').Scene, x: number, y: number, points: number) {
+  // Create a glowing sphere that floats up as visual feedback
+  const color = points >= 500 ? '#ffaa00' : points >= 200 ? '#ff00ff' : '#00ffff';
+  const geo = new SphereGeometry(0.06 + points * 0.00005, 6, 4);
+  const mat = new MeshBasicMaterial({ color: new Color(color), transparent: true, opacity: 0.9 });
+  const mesh = new Mesh(geo, mat);
+  mesh.position.set(x, y + 0.3, 0.3);
+  scene.add(mesh);
+  scorePopups.push({ mesh, x, y: y + 0.3, vy: 2.5, life: 0.8, maxLife: 0.8 });
+}
+
+function updateScorePopups(scene: import('@iwsdk/core').Scene, delta: number) {
+  for (let i = scorePopups.length - 1; i >= 0; i--) {
+    const sp = scorePopups[i];
+    sp.life -= delta;
+    if (sp.life <= 0) {
+      scene.remove(sp.mesh);
+      sp.mesh.geometry.dispose();
+      (sp.mesh.material as MeshBasicMaterial).dispose();
+      scorePopups.splice(i, 1);
+      continue;
+    }
+    sp.y += sp.vy * delta;
+    sp.vy -= 1.5 * delta;
+    sp.mesh.position.y = sp.y;
+    const alpha = sp.life / sp.maxLife;
+    (sp.mesh.material as MeshBasicMaterial).opacity = alpha;
+    const scale = 1 + (1 - alpha) * 0.5;
+    sp.mesh.scale.set(scale, scale, scale);
+  }
+}
+
+// ─── BONUS GEM CREATOR ───
+function createBonusGem(scene: import('@iwsdk/core').Scene, x: number, y: number, row: number, points: number): BonusItem {
+  const group = new Group();
+  const sch = SCHEMES[state.scheme];
+
+  // Diamond shape using two cones (pyramids via CylinderGeometry)
+  const topGeo = new CylinderGeometry(0, 0.12, 0.15, 4);
+  const botGeo = new CylinderGeometry(0.12, 0, 0.1, 4);
+  const gemColor = points >= 300 ? '#ffaa00' : points >= 200 ? '#ff00ff' : '#00ff88';
+  const mat = new MeshStandardMaterial({
+    color: new Color(gemColor),
+    emissive: new Color(gemColor),
+    emissiveIntensity: 0.8,
+    transparent: true,
+    opacity: 0.9,
+  });
+  const top = new Mesh(topGeo, mat);
+  top.position.y = 0.075;
+  group.add(top);
+  const bot = new Mesh(botGeo, mat);
+  bot.position.y = -0.05;
+  bot.rotation.x = Math.PI;
+  group.add(bot);
+
+  // Glow sphere
+  const glowGeo = new SphereGeometry(0.16, 6, 4);
+  const glowMat = new MeshBasicMaterial({
+    color: new Color(gemColor),
+    transparent: true,
+    opacity: 0.15,
+  });
+  const glow = new Mesh(glowGeo, glowMat);
+  group.add(glow);
+
+  group.position.set(x, y, 0.15);
+  scene.add(group);
+
+  return { mesh: group, x, y, row, points, life: 6 + Math.random() * 4, bobTimer: Math.random() * Math.PI * 2, collected: false };
+}
+
+// ─── LADDER PATROL CREATOR ───
+function createLadderPatrolMesh(scene: import('@iwsdk/core').Scene, x: number, y: number): Group {
+  const group = new Group();
+
+  // Skull-like enemy
+  const headGeo = new SphereGeometry(0.15, 6, 4);
+  const headMat = new MeshStandardMaterial({
+    color: new Color('#ff2200'),
+    emissive: new Color('#ff2200'),
+    emissiveIntensity: 0.6,
+  });
+  const head = new Mesh(headGeo, headMat);
+  group.add(head);
+
+  // Eyes
+  const eyeGeo = new SphereGeometry(0.04, 4, 3);
+  const eyeMat = new MeshBasicMaterial({ color: 0xffffff });
+  const leftEye = new Mesh(eyeGeo, eyeMat);
+  leftEye.position.set(-0.06, 0.03, 0.12);
+  group.add(leftEye);
+  const rightEye = new Mesh(eyeGeo, eyeMat);
+  rightEye.position.set(0.06, 0.03, 0.12);
+  group.add(rightEye);
+
+  // Body
+  const bodyGeo = new CylinderGeometry(0.1, 0.08, 0.2, 6);
+  const bodyMat = new MeshStandardMaterial({
+    color: new Color('#cc1100'),
+    emissive: new Color('#cc1100'),
+    emissiveIntensity: 0.4,
+  });
+  const body = new Mesh(bodyGeo, bodyMat);
+  body.position.y = -0.2;
+  group.add(body);
+
+  // Wireframe
+  const edges = new EdgesGeometry(headGeo);
+  const line = new LineSegments(edges, new LineBasicMaterial({ color: new Color('#ff4400') }));
+  group.add(line);
+
+  group.position.set(x, y, 0.1);
+  scene.add(group);
+  return group;
+}
+
 // ─── ENVIRONMENT ───
 function createEnvironment(scene: import('@iwsdk/core').Scene): Group {
   const group = new Group();
@@ -981,6 +1159,8 @@ function startGame() {
   fireBarrelsDodged = 0;
   springJumped = false;
   levelHammerUsed = false;
+  bonusCollectedGame = 0;
+  patrolsPassed = 0;
   state.timeRemaining = 120;
   state.movesRemaining = 200;
   state.careerGames++;
@@ -1006,11 +1186,17 @@ function setupLevel() {
   for (const ft of state.fireTrails) scene.remove(ft.mesh);
   for (const sp of state.springs) scene.remove(sp.mesh);
   for (const sh of shields) scene.remove(sh.mesh);
+  for (const bi of bonusItems) scene.remove(bi.mesh);
+  for (const lp of ladderPatrols) scene.remove(lp.mesh);
+  for (const sp of scorePopups) { scene.remove(sp.mesh); sp.mesh.geometry.dispose(); (sp.mesh.material as MeshBasicMaterial).dispose(); }
   state.barrels = [];
   state.fireBarrels = [];
   state.fireTrails = [];
   state.springs = [];
   shields = [];
+  bonusItems = [];
+  ladderPatrols = [];
+  scorePopups = [];
 
   const { platforms, ladders, hammers } = generateLevel(state.level);
   state.platforms = platforms;
@@ -1121,6 +1307,39 @@ function setupLevel() {
       });
     }
   }
+
+  // Bonus gems (all levels, increasing count)
+  const gemCount = Math.min(3, 1 + Math.floor(state.level / 2));
+  for (let g = 0; g < gemCount; g++) {
+    const gemRow = 1 + Math.floor(Math.random() * (ROWS - 2));
+    const gemCol = 1 + Math.floor(Math.random() * (COLS - 2));
+    const gx = (gemCol - COLS / 2 + 0.5) * CELL;
+    const gy = platforms[gemRow].y + PLATFORM_H / 2 + 0.2;
+    const pts = state.level >= 5 ? 300 : state.level >= 3 ? 200 : 100;
+    bonusItems.push(createBonusGem(scene, gx, gy, gemRow, pts));
+  }
+
+  // Ladder patrol enemies (level 6+)
+  if (state.level >= 6) {
+    const patrolCount = Math.min(2, Math.floor((state.level - 5) / 2) + 1);
+    const usedLadders = new Set<number>();
+    for (let p = 0; p < patrolCount; p++) {
+      // Pick a ladder that spans at least 2 rows and isn't already used
+      const candidates = ladders.map((l, idx) => ({ l, idx })).filter(({ l, idx }) => !usedLadders.has(idx));
+      if (candidates.length === 0) break;
+      const pick = candidates[Math.floor(Math.random() * candidates.length)];
+      usedLadders.add(pick.idx);
+      const ladder = pick.l;
+      const patrolMesh = createLadderPatrolMesh(scene, ladder.x, ladder.yBottom + 0.3);
+      ladderPatrols.push({
+        mesh: patrolMesh,
+        ladderIdx: pick.idx,
+        y: ladder.yBottom + 0.3,
+        direction: 1,
+        speed: 1.2 + state.level * 0.08,
+      });
+    }
+  }
 }
 
 function spawnBarrel() {
@@ -1185,6 +1404,7 @@ function addScore(points: number) {
   if (state.score >= 5000) checkAchievement('score_5k');
   if (state.score >= 10000) checkAchievement('score_10k');
   if (state.score >= 25000) checkAchievement('score_25k');
+  if (state.score >= 50000) checkAchievement('score_50k');
 }
 
 function playerDeath() {
@@ -1249,6 +1469,7 @@ function levelClear() {
   if (state.level >= 3) checkAchievement('level_3');
   if (state.level >= 5) checkAchievement('level_5');
   if (state.level >= 10) checkAchievement('level_10');
+  if (state.level >= 15) checkAchievement('level_15');
   if (state.level > state.careerBestLevel) state.careerBestLevel = state.level;
 
   if (levelDeathCount === 0) checkAchievement('no_death');
@@ -1682,6 +1903,7 @@ class GameSystem extends createSystem({}) {
           addScore(300);
           playSound('smash');
           spawnParticles(scene, barrel.x, barrel.y, SCHEMES[state.scheme].accent, 10);
+          spawnScorePopup(scene, barrel.x, barrel.y, 300);
           checkAchievement('first_barrel');
           if (state.barrelsSmashed >= 10) checkAchievement('smash_10');
           if (state.careerSmashed >= 50) checkAchievement('smash_50');
@@ -1928,6 +2150,101 @@ class GameSystem extends createSystem({}) {
     // ─── SURVIVE TIMER ACHIEVEMENT ───
     const elapsedLevel = performance.now() / 1000 - levelStartTime;
     if (elapsedLevel >= 60) checkAchievement('survive_60s');
+
+    // ─── BONUS ITEM UPDATE ───
+    for (let i = bonusItems.length - 1; i >= 0; i--) {
+      const bi = bonusItems[i];
+      if (bi.collected) continue;
+      bi.life -= delta;
+      bi.bobTimer += delta * 3;
+      bi.mesh.position.y = bi.y + Math.sin(bi.bobTimer) * 0.08;
+      bi.mesh.rotation.y += delta * 2;
+
+      // Flicker when about to expire
+      if (bi.life < 2) {
+        bi.mesh.visible = Math.sin(bi.life * 12) > 0;
+      }
+
+      if (bi.life <= 0) {
+        scene.remove(bi.mesh);
+        bonusItems.splice(i, 1);
+        continue;
+      }
+
+      // Collection check
+      const dx = state.playerX - bi.x;
+      const dy = state.playerY - bi.y;
+      if (Math.sqrt(dx * dx + dy * dy) < 0.5 && state.playerPlatformRow === bi.row) {
+        bi.collected = true;
+        bi.mesh.visible = false;
+        scene.remove(bi.mesh);
+        bonusItems.splice(i, 1);
+        addScore(bi.points);
+        playSound('bonus_collect');
+        spawnParticles(scene, bi.x, bi.y, '#ffaa00', 8);
+        spawnScorePopup(scene, bi.x, bi.y, bi.points);
+        bonusCollectedGame++;
+        bonusCollectedTotal++;
+        if (bonusCollectedGame >= 5) checkAchievement('bonus_5');
+        if (bonusCollectedTotal >= 15) checkAchievement('bonus_15');
+        saveCareer();
+      }
+    }
+
+    // ─── LADDER PATROL UPDATE ───
+    for (const lp of ladderPatrols) {
+      const ladder = state.ladders[lp.ladderIdx];
+      if (!ladder) continue;
+
+      lp.y += lp.direction * lp.speed * delta;
+
+      // Reverse at ends
+      if (lp.y >= ladder.yTop - 0.1) {
+        lp.y = ladder.yTop - 0.1;
+        lp.direction = -1;
+      }
+      if (lp.y <= ladder.yBottom + 0.1) {
+        lp.y = ladder.yBottom + 0.1;
+        lp.direction = 1;
+      }
+
+      lp.mesh.position.set(ladder.x, lp.y, 0.1);
+      // Pulsing glow
+      lp.mesh.rotation.y = Math.sin(elapsedLevel * 4) * 0.3;
+
+      // Collision with player (only while climbing on the same ladder)
+      if (state.playerClimbing) {
+        const dx = Math.abs(state.playerX - ladder.x);
+        const dy = Math.abs(state.playerY - lp.y);
+        if (dx < 0.35 && dy < 0.35) {
+          if (state.hasHammer) {
+            // Knock it away temporarily
+            lp.direction *= -1;
+            lp.y += lp.direction * 1.0;
+            addScore(250);
+            playSound('smash');
+            spawnParticles(scene, ladder.x, lp.y, '#ff2200', 8);
+            spawnScorePopup(scene, ladder.x, lp.y, 250);
+          } else {
+            playerDeath();
+            if ((state.status as string) === 'gameover') return;
+          }
+        }
+      } else {
+        // Track passing a patrol's ladder while on the adjacent platform
+        const dx = Math.abs(state.playerX - ladder.x);
+        if (dx < 0.5 && (state.playerPlatformRow === ladder.rowTop || state.playerPlatformRow === ladder.rowBottom)) {
+          if (!(lp as any).__passed) {
+            (lp as any).__passed = true;
+            patrolsPassed++;
+            if (patrolsPassed >= 3) checkAchievement('patrol_dodge');
+          }
+        }
+      }
+    }
+
+    // ─── SCORE POPUPS ───
+    updateScorePopups(scene, delta);
 
     // ─── SCREEN SHAKE ───
     if (state.shakeTimer > 0) {

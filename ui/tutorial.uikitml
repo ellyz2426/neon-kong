@@ -7,6 +7,8 @@
       <div name="t3" font-size="13" color="#cccccc">Grab hammers to smash barrels.</div>
       <div name="t3b" font-size="13" color="#4488ff">Collect shields to block hits!</div>
       <div name="t3c" font-size="13" color="#ff6600">Watch for fire barrels and springs!</div>
+      <div name="t3d" font-size="13" color="#00ff88">Grab neon gems for bonus points!</div>
+      <div name="t3e" font-size="13" color="#ff2200">Beware ladder patrols (level 6+)!</div>
       <div name="spacer" height="4"></div>
       <div name="t4" font-size="14" color="#ffaa00">Keyboard Controls:</div>
       <div name="t5" font-size="12" color="#888888">Arrows/WASD - Move and Climb</div>
