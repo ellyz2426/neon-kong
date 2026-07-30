@@ -15,6 +15,10 @@
       <div name="t3i" font-size="13" color="#ff44ff">Warp portals teleport you (level 4+)!</div>
       <div name="t3j" font-size="13" color="#ff3366">Hearts give an extra life (rare)!</div>
       <div name="t3k" font-size="13" color="#ff8844">Orange platforms crumble (level 7+)!</div>
+      <div name="t3l" font-size="13" color="#ff4444">Magnets attract gems and rivets (lv4+)!</div>
+      <div name="t3m" font-size="13" color="#ffdd00">Gold rings give 2x score (level 6+)!</div>
+      <div name="t3n" font-size="13" color="#ff0066">Every 5th level is a BOSS LEVEL!</div>
+      <div name="t3o" font-size="13" color="#ff0066">Boss: dodge Kong's shockwaves!</div>
       <div name="spacer" height="4"></div>
       <div name="t4" font-size="14" color="#ffaa00">Keyboard Controls:</div>
       <div name="t5" font-size="12" color="#888888">Arrows/WASD - Move and Climb</div>

@@ -1,5 +1,5 @@
 <panel>
-  <div name="hud-root" flex-direction="row" justify-content="space-between" width="600" padding="8" gap="16">
+  <div name="hud-root" flex-direction="row" justify-content="space-between" width="700" padding="8" gap="12">
     <div name="score-block" flex-direction="column" align-items="center">
       <div name="score-label" font-size="10" color="#888888">SCORE</div>
       <div name="score-val" font-size="20" color="#00ffff" font-weight="bold">0</div>
@@ -18,14 +18,15 @@
     <div name="timer-block" flex-direction="column" align-items="center">
       <div name="timer-val" font-size="16" color="#00ff88"></div>
     </div>
-    <div name="hammer-block" flex-direction="column" align-items="center">
-      <div name="hammer-val" font-size="14" color="#ffaa00" font-weight="bold"></div>
+    <div name="powerup-block" flex-direction="column" align-items="flex-start" gap="2">
+      <div name="hammer-val" font-size="12" color="#ffaa00" font-weight="bold"></div>
+      <div name="shield-val" font-size="12" color="#4488ff" font-weight="bold"></div>
+      <div name="speed-val" font-size="12" color="#ffff00" font-weight="bold"></div>
+      <div name="magnet-val" font-size="12" color="#ff4444" font-weight="bold"></div>
+      <div name="mult-val" font-size="12" color="#ffdd00" font-weight="bold"></div>
     </div>
-    <div name="shield-block" flex-direction="column" align-items="center">
-      <div name="shield-val" font-size="14" color="#4488ff" font-weight="bold"></div>
-    </div>
-    <div name="speed-block" flex-direction="column" align-items="center">
-      <div name="speed-val" font-size="14" color="#ffff00" font-weight="bold"></div>
+    <div name="boss-block" flex-direction="column" align-items="center">
+      <div name="boss-val" font-size="14" color="#ff0066" font-weight="bold"></div>
     </div>
   </div>
 </panel>

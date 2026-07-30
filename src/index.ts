@@ -211,6 +211,32 @@ interface ExtraLife {
   pulseTimer: number;
 }
 
+interface MagnetPickup {
+  mesh: Group;
+  x: number;
+  y: number;
+  row: number;
+  active: boolean;
+  bobTimer: number;
+}
+
+interface ScoreMultiplier {
+  mesh: Group;
+  x: number;
+  y: number;
+  row: number;
+  active: boolean;
+  bobTimer: number;
+}
+
+interface Shockwave {
+  mesh: Mesh;
+  radius: number;
+  maxRadius: number;
+  life: number;
+  y: number;
+}
+
 interface GameState {
   mode: string;
   difficulty: string;
@@ -276,6 +302,15 @@ interface GameState {
   careerBestScore: number;
   careerBestLevel: number;
   careerBestCombo: number;
+  // Boss fight
+  isBossLevel: boolean;
+  bossShockwaveTimer: number;
+  // Magnet power-up
+  hasMagnet: boolean;
+  magnetTimer: number;
+  // Score multiplier
+  hasMultiplier: boolean;
+  multiplierTimer: number;
   // Achievements
   achievements: Set<string>;
 }
@@ -326,6 +361,11 @@ const ALL_ACHIEVEMENTS = [
   { id: 'crumble_survive', name: 'Floor is Lava', desc: 'Survive 3 crumbling platforms' },
   { id: 'warp_use', name: 'Portal Jumper', desc: 'Use a warp portal' },
   { id: 'extra_life', name: 'Second Wind', desc: 'Collect an extra life' },
+  { id: 'boss_clear', name: 'Boss Slayer', desc: 'Clear a boss level (every 5th)' },
+  { id: 'magnet_collect', name: 'Magnet Master', desc: 'Collect a magnet power-up' },
+  { id: 'multiplier_collect', name: 'Double Trouble', desc: 'Collect a score multiplier' },
+  { id: 'score_200k', name: 'Neon Titan', desc: 'Score 200,000 points' },
+  { id: 'level_20', name: 'Kong Conqueror', desc: 'Reach level 20' },
 ];
 
 let state: GameState;
@@ -357,6 +397,10 @@ let afterimages: Afterimage[] = [];
 let rivets: Rivet[] = [];
 let warpPortals: WarpPortal[] = [];
 let extraLives: ExtraLife[] = [];
+let magnetPickups: MagnetPickup[] = [];
+let scoreMultipliers: ScoreMultiplier[] = [];
+let shockwaves: Shockwave[] = [];
+let bossLevelsCleared = 0;
 let rivetsCollectedLevel = 0;
 let rivetsOnLevel = 0;
 let crumblePlatformsSurvived = 0;
@@ -580,6 +624,44 @@ function playSound(type: string) {
       gain.gain.setValueAtTime(0.15, now);
       gain.gain.linearRampToValueAtTime(0, now + 0.55);
       osc.start(now); osc.stop(now + 0.55);
+      break;
+    case 'shockwave':
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(80, now);
+      osc.frequency.linearRampToValueAtTime(40, now + 0.4);
+      gain.gain.setValueAtTime(0.18, now);
+      gain.gain.linearRampToValueAtTime(0, now + 0.5);
+      osc.start(now); osc.stop(now + 0.5);
+      break;
+    case 'magnet_get':
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(600, now);
+      osc.frequency.setValueAtTime(900, now + 0.06);
+      osc.frequency.setValueAtTime(600, now + 0.12);
+      osc.frequency.setValueAtTime(1200, now + 0.18);
+      gain.gain.setValueAtTime(0.12, now);
+      gain.gain.linearRampToValueAtTime(0, now + 0.3);
+      osc.start(now); osc.stop(now + 0.3);
+      break;
+    case 'multiplier_get':
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(400, now);
+      osc.frequency.setValueAtTime(800, now + 0.08);
+      osc.frequency.setValueAtTime(400, now + 0.16);
+      osc.frequency.setValueAtTime(1000, now + 0.24);
+      gain.gain.setValueAtTime(0.14, now);
+      gain.gain.linearRampToValueAtTime(0, now + 0.35);
+      osc.start(now); osc.stop(now + 0.35);
+      break;
+    case 'boss_intro':
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(100, now);
+      osc.frequency.linearRampToValueAtTime(200, now + 0.2);
+      osc.frequency.linearRampToValueAtTime(100, now + 0.4);
+      osc.frequency.linearRampToValueAtTime(300, now + 0.6);
+      gain.gain.setValueAtTime(0.2, now);
+      gain.gain.linearRampToValueAtTime(0, now + 0.8);
+      osc.start(now); osc.stop(now + 0.8);
       break;
   }
 }
@@ -1294,6 +1376,12 @@ function initState(): GameState {
     careerBestScore: career.careerBestScore || 0,
     careerBestLevel: career.careerBestLevel || 0,
     careerBestCombo: career.careerBestCombo || 0,
+    isBossLevel: false,
+    bossShockwaveTimer: 0,
+    hasMagnet: false,
+    magnetTimer: 0,
+    hasMultiplier: false,
+    multiplierTimer: 0,
     achievements: career.achievements || new Set(),
   };
 }
@@ -1333,6 +1421,12 @@ function startGame() {
   rivetsCollectedLevel = 0;
   rivetsOnLevel = 0;
   crumblePlatformsSurvived = 0;
+  state.isBossLevel = false;
+  state.bossShockwaveTimer = 0;
+  state.hasMagnet = false;
+  state.magnetTimer = 0;
+  state.hasMultiplier = false;
+  state.multiplierTimer = 0;
   state.timeRemaining = 120;
   state.movesRemaining = 200;
   state.careerGames++;
@@ -1364,6 +1458,9 @@ function setupLevel() {
   for (const rv of rivets) scene.remove(rv.mesh);
   for (const wp of warpPortals) scene.remove(wp.mesh);
   for (const el of extraLives) scene.remove(el.mesh);
+  for (const mp of magnetPickups) scene.remove(mp.mesh);
+  for (const sm of scoreMultipliers) scene.remove(sm.mesh);
+  for (const sw of shockwaves) { scene.remove(sw.mesh); sw.mesh.geometry.dispose(); (sw.mesh.material as MeshBasicMaterial).dispose(); }
   for (const ai of afterimages) { scene.remove(ai.mesh); ai.mesh.geometry.dispose(); (ai.mesh.material as MeshBasicMaterial).dispose(); }
   // Clean up conveyor arrows
   for (const cb of state.conveyorBelts) { for (const am of cb.arrowMeshes) { scene.remove(am); am.geometry.dispose(); (am.material as MeshBasicMaterial).dispose(); } }
@@ -1382,6 +1479,9 @@ function setupLevel() {
   rivets = [];
   warpPortals = [];
   extraLives = [];
+  magnetPickups = [];
+  scoreMultipliers = [];
+  shockwaves = [];
   rivetsCollectedLevel = 0;
 
   const { platforms, ladders, hammers } = generateLevel(state.level);
@@ -1802,6 +1902,95 @@ function setupLevel() {
 
   // Update music tension for new level
   updateMusicTension();
+
+  // ─── BOSS LEVEL SETUP ───
+  state.isBossLevel = state.level % 5 === 0 && state.level > 0;
+  if (state.isBossLevel) {
+    state.bossShockwaveTimer = 4;
+    playSound('boss_intro');
+    // Kong glows more intensely on boss levels
+    kongMesh.children.forEach(child => {
+      if (child instanceof Mesh) {
+        const mat = (child as Mesh).material as MeshStandardMaterial;
+        if (mat.emissiveIntensity !== undefined) {
+          mat.emissiveIntensity = Math.min(1.2, (mat.emissiveIntensity || 0.4) + 0.5);
+        }
+      }
+    });
+  }
+
+  // ─── MAGNET PICKUP (level 4+) ───
+  if (state.level >= 4) {
+    const magRow = 2 + Math.floor(Math.random() * (ROWS - 4));
+    const magCol = 1 + Math.floor(Math.random() * (COLS - 2));
+    const mx = (magCol - COLS / 2 + 0.5) * CELL;
+    const my = platforms[magRow].y + PLATFORM_H / 2 + 0.25;
+    const magGroup = new Group();
+    // U-shaped magnet using cylinders
+    const magMat = new MeshStandardMaterial({
+      color: new Color('#ff4444'),
+      emissive: new Color('#ff2222'),
+      emissiveIntensity: 0.7,
+    });
+    const leftPole = new Mesh(new CylinderGeometry(0.04, 0.04, 0.2, 6), magMat);
+    leftPole.position.set(-0.08, -0.05, 0);
+    magGroup.add(leftPole);
+    const rightPole = new Mesh(new CylinderGeometry(0.04, 0.04, 0.2, 6), magMat);
+    rightPole.position.set(0.08, -0.05, 0);
+    magGroup.add(rightPole);
+    const topBar = new Mesh(new BoxGeometry(0.2, 0.06, 0.06), new MeshStandardMaterial({
+      color: new Color('#cccccc'),
+      emissive: new Color('#888888'),
+      emissiveIntensity: 0.5,
+    }));
+    topBar.position.set(0, 0.07, 0);
+    magGroup.add(topBar);
+    // Glow
+    const mGlow = new Mesh(new SphereGeometry(0.18, 6, 4), new MeshBasicMaterial({
+      color: new Color('#ff4444'),
+      transparent: true,
+      opacity: 0.15,
+    }));
+    magGroup.add(mGlow);
+    magGroup.position.set(mx, my, 0.12);
+    scene.add(magGroup);
+    magnetPickups.push({ mesh: magGroup, x: mx, y: my, row: magRow, active: true, bobTimer: Math.random() * Math.PI * 2 });
+  }
+
+  // ─── SCORE MULTIPLIER (level 6+) ───
+  if (state.level >= 6) {
+    const multRow = 2 + Math.floor(Math.random() * (ROWS - 4));
+    const multCol = 1 + Math.floor(Math.random() * (COLS - 2));
+    const smx = (multCol - COLS / 2 + 0.5) * CELL;
+    const smy = platforms[multRow].y + PLATFORM_H / 2 + 0.25;
+    const multGroup = new Group();
+    // "2x" represented by stacked rings
+    const ring1 = new Mesh(new CylinderGeometry(0.14, 0.14, 0.03, 8), new MeshStandardMaterial({
+      color: new Color('#ffdd00'),
+      emissive: new Color('#ffcc00'),
+      emissiveIntensity: 0.9,
+    }));
+    ring1.rotation.x = Math.PI / 2;
+    multGroup.add(ring1);
+    const ring2 = new Mesh(new CylinderGeometry(0.1, 0.1, 0.03, 8), new MeshStandardMaterial({
+      color: new Color('#ff8800'),
+      emissive: new Color('#ff6600'),
+      emissiveIntensity: 0.8,
+    }));
+    ring2.rotation.x = Math.PI / 2;
+    ring2.position.z = 0.04;
+    multGroup.add(ring2);
+    // Glow
+    const smGlow = new Mesh(new SphereGeometry(0.18, 6, 4), new MeshBasicMaterial({
+      color: new Color('#ffdd00'),
+      transparent: true,
+      opacity: 0.2,
+    }));
+    multGroup.add(smGlow);
+    multGroup.position.set(smx, smy, 0.12);
+    scene.add(multGroup);
+    scoreMultipliers.push({ mesh: multGroup, x: smx, y: smy, row: multRow, active: true, bobTimer: Math.random() * Math.PI * 2 });
+  }
 }
 
 function spawnBarrel() {
@@ -1895,7 +2084,8 @@ function addScore(points: number) {
   const comboElapsed = performance.now() / 1000 - comboStartTime;
   if (comboElapsed >= 10 && state.combo > 1) checkAchievement('combo_no_break');
   const mult = Math.min(state.combo, 8);
-  state.score += points * mult;
+  const globalMult = state.hasMultiplier ? 2 : 1;
+  state.score += points * mult * globalMult;
   if (mult >= 3) { checkAchievement('combo_3'); playSound('combo'); }
   if (mult >= 5) checkAchievement('combo_5');
   if (mult >= 8) checkAchievement('combo_8');
@@ -1907,6 +2097,7 @@ function addScore(points: number) {
   if (state.score >= 25000) checkAchievement('score_25k');
   if (state.score >= 50000) checkAchievement('score_50k');
   if (state.score >= 100000) checkAchievement('score_100k');
+  if (state.score >= 200000) checkAchievement('score_200k');
 }
 
 function playerDeath() {
@@ -1942,6 +2133,10 @@ function playerDeath() {
   state.combo = 0;
   state.hasSpeedBoost = false;
   state.speedBoostTimer = 0;
+  state.hasMagnet = false;
+  state.magnetTimer = 0;
+  state.hasMultiplier = false;
+  state.multiplierTimer = 0;
 
   if (state.lives <= 0) {
     state.status = 'gameover';
@@ -1974,6 +2169,12 @@ function levelClear() {
   if (state.level >= 5) checkAchievement('level_5');
   if (state.level >= 10) checkAchievement('level_10');
   if (state.level >= 15) checkAchievement('level_15');
+  if (state.level >= 20) checkAchievement('level_20');
+  if (state.isBossLevel) {
+    bossLevelsCleared++;
+    checkAchievement('boss_clear');
+    addScore(2000); // Boss clear bonus
+  }
   if (state.level > state.careerBestLevel) state.careerBestLevel = state.level;
 
   if (levelDeathCount === 0) checkAchievement('no_death');
@@ -2366,8 +2567,9 @@ class GameSystem extends createSystem({}) {
 
     // ─── BARREL SPAWNING ───
     state.barrelSpawnTimer -= delta;
-    const spawnInterval = Math.max(BARREL_SPAWN_INTERVAL_MIN,
-      BARREL_SPAWN_INTERVAL_BASE - state.level * 0.1) / diffMult;
+    const bossSpawnMult = state.isBossLevel ? 0.5 : 1.0;
+    const spawnInterval = Math.max(BARREL_SPAWN_INTERVAL_MIN * 0.7,
+      BARREL_SPAWN_INTERVAL_BASE - state.level * 0.1) / diffMult * bossSpawnMult;
     if (state.barrelSpawnTimer <= 0) {
       spawnBarrel();
       state.barrelSpawnTimer = spawnInterval;
@@ -2967,6 +3169,153 @@ class GameSystem extends createSystem({}) {
       }
     }
 
+    // ─── MAGNET POWER-UP PICKUP ───
+    for (let i = magnetPickups.length - 1; i >= 0; i--) {
+      const mp = magnetPickups[i];
+      if (!mp.active) continue;
+      mp.bobTimer += delta * 4;
+      mp.mesh.position.y = mp.y + Math.sin(mp.bobTimer) * 0.06;
+      mp.mesh.rotation.y += delta * 3;
+      const dx = state.playerX - mp.x;
+      const dy = state.playerY - mp.y;
+      if (Math.sqrt(dx * dx + dy * dy) < 0.5 && state.playerPlatformRow === mp.row) {
+        mp.active = false;
+        mp.mesh.visible = false;
+        scene.remove(mp.mesh);
+        magnetPickups.splice(i, 1);
+        state.hasMagnet = true;
+        state.magnetTimer = 8;
+        playSound('magnet_get');
+        spawnParticles(scene, mp.x, mp.y, '#ff4444', 10);
+        checkAchievement('magnet_collect');
+      }
+    }
+
+    // ─── MAGNET EFFECT ───
+    if (state.hasMagnet) {
+      state.magnetTimer -= delta;
+      if (state.magnetTimer <= 0) {
+        state.hasMagnet = false;
+      } else {
+        const magnetRange = 3.0;
+        // Attract gems
+        for (const bi of bonusItems) {
+          if (bi.collected) continue;
+          const dx = state.playerX - bi.x;
+          const dy = state.playerY - bi.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < magnetRange && dist > 0.1) {
+            const pullStr = (1 - dist / magnetRange) * 4 * delta;
+            bi.x += (dx / dist) * pullStr;
+            bi.y += (dy / dist) * pullStr;
+            bi.mesh.position.set(bi.x, bi.y + Math.sin(bi.bobTimer) * 0.08, 0.15);
+          }
+        }
+        // Attract rivets
+        for (const rv of rivets) {
+          if (rv.collected) continue;
+          const dx = state.playerX - rv.x;
+          const dy = state.playerY - rv.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < magnetRange && dist > 0.1) {
+            const pullStr = (1 - dist / magnetRange) * 4 * delta;
+            rv.x += (dx / dist) * pullStr;
+            rv.y += (dy / dist) * pullStr;
+            rv.mesh.position.set(rv.x, rv.y + Math.sin(rv.bobTimer) * 0.04, 0.12);
+          }
+        }
+      }
+    }
+
+    // ─── SCORE MULTIPLIER PICKUP ───
+    for (let i = scoreMultipliers.length - 1; i >= 0; i--) {
+      const sm = scoreMultipliers[i];
+      if (!sm.active) continue;
+      sm.bobTimer += delta * 3;
+      sm.mesh.position.y = sm.y + Math.sin(sm.bobTimer) * 0.06;
+      sm.mesh.rotation.y += delta * 4;
+      const dx = state.playerX - sm.x;
+      const dy = state.playerY - sm.y;
+      if (Math.sqrt(dx * dx + dy * dy) < 0.5 && state.playerPlatformRow === sm.row) {
+        sm.active = false;
+        sm.mesh.visible = false;
+        scene.remove(sm.mesh);
+        scoreMultipliers.splice(i, 1);
+        state.hasMultiplier = true;
+        state.multiplierTimer = 10;
+        playSound('multiplier_get');
+        spawnParticles(scene, sm.x, sm.y, '#ffdd00', 12);
+        checkAchievement('multiplier_collect');
+      }
+    }
+
+    // ─── MULTIPLIER TIMER ───
+    if (state.hasMultiplier) {
+      state.multiplierTimer -= delta;
+      if (state.multiplierTimer <= 0) {
+        state.hasMultiplier = false;
+      }
+    }
+
+    // ─── BOSS SHOCKWAVE ATTACK ───
+    if (state.isBossLevel) {
+      state.bossShockwaveTimer -= delta;
+      if (state.bossShockwaveTimer <= 0) {
+        // Kong slams the ground, creating a shockwave
+        state.bossShockwaveTimer = 3.5 - Math.min(1.5, state.level * 0.05);
+        playSound('shockwave');
+        state.shakeTimer = 0.3;
+        state.shakeIntensity = 0.12;
+        // Create expanding ring shockwave from Kong's position
+        const swY = state.platforms[ROWS - 1].y;
+        const swGeo = new CylinderGeometry(0.3, 0.3, 0.08, 16);
+        const swMat = new MeshBasicMaterial({
+          color: new Color(SCHEMES[state.scheme].accent),
+          transparent: true,
+          opacity: 0.7,
+        });
+        const swMesh = new Mesh(swGeo, swMat);
+        swMesh.position.set(state.kongX, swY, 0.2);
+        scene.add(swMesh);
+        shockwaves.push({ mesh: swMesh, radius: 0.3, maxRadius: 8, life: 1.2, y: swY });
+      }
+    }
+
+    // ─── SHOCKWAVE UPDATE ───
+    for (let i = shockwaves.length - 1; i >= 0; i--) {
+      const sw = shockwaves[i];
+      sw.life -= delta;
+      if (sw.life <= 0) {
+        scene.remove(sw.mesh);
+        sw.mesh.geometry.dispose();
+        (sw.mesh.material as MeshBasicMaterial).dispose();
+        shockwaves.splice(i, 1);
+        continue;
+      }
+      sw.radius += delta * 6;
+      sw.mesh.scale.set(sw.radius / 0.3, 1, sw.radius / 0.3);
+      (sw.mesh.material as MeshBasicMaterial).opacity = (sw.life / 1.2) * 0.7;
+      // Move shockwave downward through platforms
+      sw.mesh.position.y -= delta * 3;
+
+      // Player collision with shockwave
+      const dx = state.playerX - sw.mesh.position.x;
+      const dy = state.playerY - sw.mesh.position.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      // Shockwave hits if player is within the ring and on the ground
+      if (dist < sw.radius * 1.2 && dist > sw.radius * 0.6 &&
+          Math.abs(dy) < 1.2 && state.playerOnGround) {
+        playerDeath();
+        if ((state.status as string) === 'gameover') return;
+        // Remove shockwave after hit
+        scene.remove(sw.mesh);
+        sw.mesh.geometry.dispose();
+        (sw.mesh.material as MeshBasicMaterial).dispose();
+        shockwaves.splice(i, 1);
+        break;
+      }
+    }
+
     // ─── SCORE POPUPS ───
     updateScorePopups(scene, delta);
 
@@ -3207,6 +3556,9 @@ class UISystem extends createSystem({
       this.setText(this.hudDoc, 'hammer-val', state.hasHammer ? 'HAMMER ' + Math.ceil(state.hammerTimer) + 's' : '');
       this.setText(this.hudDoc, 'shield-val', state.hasShield ? 'SHIELD x' + state.shieldHitsLeft : '');
       this.setText(this.hudDoc, 'speed-val', state.hasSpeedBoost ? 'TURBO ' + Math.ceil(state.speedBoostTimer) + 's' : '');
+      this.setText(this.hudDoc, 'magnet-val', state.hasMagnet ? 'MAGNET ' + Math.ceil(state.magnetTimer) + 's' : '');
+      this.setText(this.hudDoc, 'mult-val', state.hasMultiplier ? '2x SCORE ' + Math.ceil(state.multiplierTimer) + 's' : '');
+      this.setText(this.hudDoc, 'boss-val', state.isBossLevel ? '!! BOSS LEVEL !!' : '');
     }
 
     // Update menu high score

@@ -197,12 +197,64 @@
               {
                 "type": "container",
                 "sourceTag": "div",
+                "children": [
+                  "Magnets attract gems and rivets (lv4+)!"
+                ],
+                "properties": {
+                  "name": "t3l",
+                  "fontSize": "13",
+                  "color": "#ff4444"
+                },
+                "dataUid": "uid-18"
+              },
+              {
+                "type": "container",
+                "sourceTag": "div",
+                "children": [
+                  "Gold rings give 2x score (level 6+)!"
+                ],
+                "properties": {
+                  "name": "t3m",
+                  "fontSize": "13",
+                  "color": "#ffdd00"
+                },
+                "dataUid": "uid-19"
+              },
+              {
+                "type": "container",
+                "sourceTag": "div",
+                "children": [
+                  "Every 5th level is a BOSS LEVEL!"
+                ],
+                "properties": {
+                  "name": "t3n",
+                  "fontSize": "13",
+                  "color": "#ff0066"
+                },
+                "dataUid": "uid-20"
+              },
+              {
+                "type": "container",
+                "sourceTag": "div",
+                "children": [
+                  "Boss: dodge Kong's shockwaves!"
+                ],
+                "properties": {
+                  "name": "t3o",
+                  "fontSize": "13",
+                  "color": "#ff0066"
+                },
+                "dataUid": "uid-21"
+              },
+              {
+                "type": "container",
+                "sourceTag": "div",
                 "children": [],
                 "properties": {
                   "name": "spacer",
                   "height": "4"
                 },
-                "dataUid": "uid-18"
+                "dataUid": "uid-22"
               },
               {
                 "type": "container",
@@ -215,7 +267,7 @@
                   "fontSize": "14",
                   "color": "#ffaa00"
                 },
-                "dataUid": "uid-19"
+                "dataUid": "uid-23"
               },
               {
                 "type": "container",
@@ -228,7 +280,7 @@
                   "fontSize": "12",
                   "color": "#888888"
                 },
-                "dataUid": "uid-20"
+                "dataUid": "uid-24"
               },
               {
                 "type": "container",
@@ -241,7 +293,7 @@
                   "fontSize": "12",
                   "color": "#888888"
                 },
-                "dataUid": "uid-21"
+                "dataUid": "uid-25"
               },
               {
                 "type": "container",
@@ -254,7 +306,7 @@
                   "fontSize": "12",
                   "color": "#888888"
                 },
-                "dataUid": "uid-22"
+                "dataUid": "uid-26"
               },
               {
                 "type": "container",
@@ -264,7 +316,7 @@
                   "name": "spacer2",
                   "height": "4"
                 },
-                "dataUid": "uid-23"
+                "dataUid": "uid-27"
               },
               {
                 "type": "container",
@@ -277,7 +329,7 @@
                   "fontSize": "14",
                   "color": "#ffaa00"
                 },
-                "dataUid": "uid-24"
+                "dataUid": "uid-28"
               },
               {
                 "type": "container",
@@ -290,7 +342,7 @@
                   "fontSize": "12",
                   "color": "#888888"
                 },
-                "dataUid": "uid-25"
+                "dataUid": "uid-29"
               },
               {
                 "type": "container",
@@ -303,7 +355,7 @@
                   "fontSize": "12",
                   "color": "#888888"
                 },
-                "dataUid": "uid-26"
+                "dataUid": "uid-30"
               },
               {
                 "type": "container",
@@ -316,7 +368,7 @@
                   "fontSize": "12",
                   "color": "#888888"
                 },
-                "dataUid": "uid-27"
+                "dataUid": "uid-31"
               },
               {
                 "type": "container",
@@ -326,7 +378,7 @@
                   "name": "spacer3",
                   "height": "4"
                 },
-                "dataUid": "uid-28"
+                "dataUid": "uid-32"
               },
               {
                 "type": "container",
@@ -339,7 +391,7 @@
                   "fontSize": "14",
                   "color": "#ffaa00"
                 },
-                "dataUid": "uid-29"
+                "dataUid": "uid-33"
               },
               {
                 "type": "container",
@@ -352,7 +404,7 @@
                   "fontSize": "12",
                   "color": "#888888"
                 },
-                "dataUid": "uid-30"
+                "dataUid": "uid-34"
               },
               {
                 "type": "container",
@@ -365,7 +417,7 @@
                   "fontSize": "12",
                   "color": "#888888"
                 },
-                "dataUid": "uid-31"
+                "dataUid": "uid-35"
               },
               {
                 "type": "container",
@@ -378,7 +430,7 @@
                   "fontSize": "12",
                   "color": "#888888"
                 },
-                "dataUid": "uid-32"
+                "dataUid": "uid-36"
               },
               {
                 "type": "container",
@@ -391,7 +443,7 @@
                   "fontSize": "12",
                   "color": "#888888"
                 },
-                "dataUid": "uid-33"
+                "dataUid": "uid-37"
               }
             ],
             "properties": {
@@ -414,7 +466,7 @@
               "color": "#888888",
               "hoverOpacity": "0.7"
             },
-            "dataUid": "uid-34"
+            "dataUid": "uid-38"
           }
         ],
         "properties": {
@@ -441,7 +493,7 @@
         "column": 0
       },
       "end": {
-        "line": 36,
+        "line": 40,
         "column": 8
       }
     },
@@ -451,7 +503,7 @@
         "column": 2
       },
       "end": {
-        "line": 35,
+        "line": 39,
         "column": 8
       }
     },
@@ -471,7 +523,7 @@
         "column": 4
       },
       "end": {
-        "line": 33,
+        "line": 37,
         "column": 10
       }
     },
@@ -612,7 +664,7 @@
       },
       "end": {
         "line": 17,
-        "column": 42
+        "column": 98
       }
     },
     "uid-19": {
@@ -622,7 +674,7 @@
       },
       "end": {
         "line": 18,
-        "column": 76
+        "column": 95
       }
     },
     "uid-20": {
@@ -632,7 +684,7 @@
       },
       "end": {
         "line": 19,
-        "column": 86
+        "column": 91
       }
     },
     "uid-21": {
@@ -642,7 +694,7 @@
       },
       "end": {
         "line": 20,
-        "column": 72
+        "column": 89
       }
     },
     "uid-22": {
@@ -652,7 +704,7 @@
       },
       "end": {
         "line": 21,
-        "column": 71
+        "column": 42
       }
     },
     "uid-23": {
@@ -662,7 +714,7 @@
       },
       "end": {
         "line": 22,
-        "column": 43
+        "column": 76
       }
     },
     "uid-24": {
@@ -672,7 +724,7 @@
       },
       "end": {
         "line": 23,
-        "column": 70
+        "column": 86
       }
     },
     "uid-25": {
@@ -682,7 +734,7 @@
       },
       "end": {
         "line": 24,
-        "column": 85
+        "column": 72
       }
     },
     "uid-26": {
@@ -692,7 +744,7 @@
       },
       "end": {
         "line": 25,
-        "column": 75
+        "column": 71
       }
     },
     "uid-27": {
@@ -702,7 +754,7 @@
       },
       "end": {
         "line": 26,
-        "column": 68
+        "column": 43
       }
     },
     "uid-28": {
@@ -712,7 +764,7 @@
       },
       "end": {
         "line": 27,
-        "column": 43
+        "column": 70
       }
     },
     "uid-29": {
@@ -722,7 +774,7 @@
       },
       "end": {
         "line": 28,
-        "column": 70
+        "column": 85
       }
     },
     "uid-30": {
@@ -732,7 +784,7 @@
       },
       "end": {
         "line": 29,
-        "column": 93
+        "column": 75
       }
     },
     "uid-31": {
@@ -742,7 +794,7 @@
       },
       "end": {
         "line": 30,
-        "column": 94
+        "column": 68
       }
     },
     "uid-32": {
@@ -752,7 +804,7 @@
       },
       "end": {
         "line": 31,
-        "column": 90
+        "column": 43
       }
     },
     "uid-33": {
@@ -762,16 +814,56 @@
       },
       "end": {
         "line": 32,
-        "column": 85
+        "column": 70
       }
     },
     "uid-34": {
       "start": {
+        "line": 33,
+        "column": 6
+      },
+      "end": {
+        "line": 33,
+        "column": 93
+      }
+    },
+    "uid-35": {
+      "start": {
         "line": 34,
-        "column": 4
+        "column": 6
       },
       "end": {
         "line": 34,
+        "column": 94
+      }
+    },
+    "uid-36": {
+      "start": {
+        "line": 35,
+        "column": 6
+      },
+      "end": {
+        "line": 35,
+        "column": 90
+      }
+    },
+    "uid-37": {
+      "start": {
+        "line": 36,
+        "column": 6
+      },
+      "end": {
+        "line": 36,
+        "column": 85
+      }
+    },
+    "uid-38": {
+      "start": {
+        "line": 38,
+        "column": 4
+      },
+      "end": {
+        "line": 38,
         "column": 90
       }
     }
