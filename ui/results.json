@@ -1,0 +1,305 @@
+{
+  "element": {
+    "sourceTag": "panel",
+    "type": "custom",
+    "children": [
+      {
+        "type": "container",
+        "sourceTag": "div",
+        "children": [
+          {
+            "type": "container",
+            "sourceTag": "div",
+            "children": [
+              "GAME OVER"
+            ],
+            "properties": {
+              "name": "results-title",
+              "fontSize": "28",
+              "color": "#ff4444",
+              "fontWeight": "bold"
+            },
+            "dataUid": "uid-3"
+          },
+          {
+            "type": "container",
+            "sourceTag": "div",
+            "children": [],
+            "properties": {
+              "name": "spacer",
+              "height": "6"
+            },
+            "dataUid": "uid-4"
+          },
+          {
+            "type": "container",
+            "sourceTag": "div",
+            "children": [
+              "Score: 0"
+            ],
+            "properties": {
+              "name": "final-score",
+              "fontSize": "22",
+              "color": "#00ffff"
+            },
+            "dataUid": "uid-5"
+          },
+          {
+            "type": "container",
+            "sourceTag": "div",
+            "children": [
+              "Level: 1"
+            ],
+            "properties": {
+              "name": "final-level",
+              "fontSize": "16",
+              "color": "#ffaa00"
+            },
+            "dataUid": "uid-6"
+          },
+          {
+            "type": "container",
+            "sourceTag": "div",
+            "children": [
+              "Smashed: 0  Jumped: 0"
+            ],
+            "properties": {
+              "name": "final-barrels",
+              "fontSize": "14",
+              "color": "#ff88ff"
+            },
+            "dataUid": "uid-7"
+          },
+          {
+            "type": "container",
+            "sourceTag": "div",
+            "children": [],
+            "properties": {
+              "name": "final-combo",
+              "fontSize": "14",
+              "color": "#ff00ff"
+            },
+            "dataUid": "uid-8"
+          },
+          {
+            "type": "container",
+            "sourceTag": "div",
+            "children": [
+              "Best: 0"
+            ],
+            "properties": {
+              "name": "final-best",
+              "fontSize": "14",
+              "color": "#888888"
+            },
+            "dataUid": "uid-9"
+          },
+          {
+            "type": "container",
+            "sourceTag": "div",
+            "children": [],
+            "properties": {
+              "name": "new-high",
+              "fontSize": "16",
+              "color": "#ffaa00",
+              "fontWeight": "bold"
+            },
+            "dataUid": "uid-10"
+          },
+          {
+            "type": "container",
+            "sourceTag": "div",
+            "children": [],
+            "properties": {
+              "name": "spacer2",
+              "height": "8"
+            },
+            "dataUid": "uid-11"
+          },
+          {
+            "type": "container",
+            "sourceTag": "div",
+            "children": [
+              "PLAY AGAIN"
+            ],
+            "properties": {
+              "name": "btn-retry",
+              "fontSize": "18",
+              "color": "#00ffff",
+              "backgroundColor": "#003344",
+              "borderRadius": "10",
+              "padding": "10",
+              "width": "260",
+              "hoverOpacity": "0.7"
+            },
+            "dataUid": "uid-12"
+          },
+          {
+            "type": "container",
+            "sourceTag": "div",
+            "children": [
+              "MAIN MENU"
+            ],
+            "properties": {
+              "name": "btn-menu",
+              "fontSize": "18",
+              "color": "#888888",
+              "backgroundColor": "#222222",
+              "borderRadius": "10",
+              "padding": "10",
+              "width": "260",
+              "hoverOpacity": "0.7"
+            },
+            "dataUid": "uid-13"
+          }
+        ],
+        "properties": {
+          "name": "results-root",
+          "backgroundColor": "#000a15",
+          "borderRadius": "20",
+          "padding": "24",
+          "width": "400",
+          "flexDirection": "column",
+          "alignItems": "center",
+          "gap": "12"
+        },
+        "dataUid": "uid-2"
+      }
+    ],
+    "properties": {},
+    "dataUid": "uid-1"
+  },
+  "classes": {},
+  "ranges": {
+    "uid-1": {
+      "start": {
+        "line": 0,
+        "column": 0
+      },
+      "end": {
+        "line": 14,
+        "column": 8
+      }
+    },
+    "uid-2": {
+      "start": {
+        "line": 1,
+        "column": 2
+      },
+      "end": {
+        "line": 13,
+        "column": 8
+      }
+    },
+    "uid-3": {
+      "start": {
+        "line": 2,
+        "column": 4
+      },
+      "end": {
+        "line": 2,
+        "column": 95
+      }
+    },
+    "uid-4": {
+      "start": {
+        "line": 3,
+        "column": 4
+      },
+      "end": {
+        "line": 3,
+        "column": 40
+      }
+    },
+    "uid-5": {
+      "start": {
+        "line": 4,
+        "column": 4
+      },
+      "end": {
+        "line": 4,
+        "column": 73
+      }
+    },
+    "uid-6": {
+      "start": {
+        "line": 5,
+        "column": 4
+      },
+      "end": {
+        "line": 5,
+        "column": 73
+      }
+    },
+    "uid-7": {
+      "start": {
+        "line": 6,
+        "column": 4
+      },
+      "end": {
+        "line": 6,
+        "column": 88
+      }
+    },
+    "uid-8": {
+      "start": {
+        "line": 7,
+        "column": 4
+      },
+      "end": {
+        "line": 7,
+        "column": 65
+      }
+    },
+    "uid-9": {
+      "start": {
+        "line": 8,
+        "column": 4
+      },
+      "end": {
+        "line": 8,
+        "column": 71
+      }
+    },
+    "uid-10": {
+      "start": {
+        "line": 9,
+        "column": 4
+      },
+      "end": {
+        "line": 9,
+        "column": 81
+      }
+    },
+    "uid-11": {
+      "start": {
+        "line": 10,
+        "column": 4
+      },
+      "end": {
+        "line": 10,
+        "column": 41
+      }
+    },
+    "uid-12": {
+      "start": {
+        "line": 11,
+        "column": 4
+      },
+      "end": {
+        "line": 11,
+        "column": 164
+      }
+    },
+    "uid-13": {
+      "start": {
+        "line": 12,
+        "column": 4
+      },
+      "end": {
+        "line": 12,
+        "column": 162
+      }
+    }
+  }
+}
