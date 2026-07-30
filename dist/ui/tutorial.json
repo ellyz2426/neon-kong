@@ -119,12 +119,38 @@
               {
                 "type": "container",
                 "sourceTag": "div",
+                "children": [
+                  "Lightning bolts give speed boosts!"
+                ],
+                "properties": {
+                  "name": "t3f",
+                  "fontSize": "13",
+                  "color": "#ffff00"
+                },
+                "dataUid": "uid-12"
+              },
+              {
+                "type": "container",
+                "sourceTag": "div",
+                "children": [
+                  "Conveyor belts push you (level 5+)!"
+                ],
+                "properties": {
+                  "name": "t3g",
+                  "fontSize": "13",
+                  "color": "#ffaa00"
+                },
+                "dataUid": "uid-13"
+              },
+              {
+                "type": "container",
+                "sourceTag": "div",
                 "children": [],
                 "properties": {
                   "name": "spacer",
                   "height": "4"
                 },
-                "dataUid": "uid-12"
+                "dataUid": "uid-14"
               },
               {
                 "type": "container",
@@ -137,7 +163,7 @@
                   "fontSize": "14",
                   "color": "#ffaa00"
                 },
-                "dataUid": "uid-13"
+                "dataUid": "uid-15"
               },
               {
                 "type": "container",
@@ -150,7 +176,7 @@
                   "fontSize": "12",
                   "color": "#888888"
                 },
-                "dataUid": "uid-14"
+                "dataUid": "uid-16"
               },
               {
                 "type": "container",
@@ -163,7 +189,7 @@
                   "fontSize": "12",
                   "color": "#888888"
                 },
-                "dataUid": "uid-15"
+                "dataUid": "uid-17"
               },
               {
                 "type": "container",
@@ -176,7 +202,7 @@
                   "fontSize": "12",
                   "color": "#888888"
                 },
-                "dataUid": "uid-16"
+                "dataUid": "uid-18"
               },
               {
                 "type": "container",
@@ -186,7 +212,7 @@
                   "name": "spacer2",
                   "height": "4"
                 },
-                "dataUid": "uid-17"
+                "dataUid": "uid-19"
               },
               {
                 "type": "container",
@@ -199,7 +225,7 @@
                   "fontSize": "14",
                   "color": "#ffaa00"
                 },
-                "dataUid": "uid-18"
+                "dataUid": "uid-20"
               },
               {
                 "type": "container",
@@ -212,7 +238,7 @@
                   "fontSize": "12",
                   "color": "#888888"
                 },
-                "dataUid": "uid-19"
+                "dataUid": "uid-21"
               },
               {
                 "type": "container",
@@ -225,7 +251,7 @@
                   "fontSize": "12",
                   "color": "#888888"
                 },
-                "dataUid": "uid-20"
+                "dataUid": "uid-22"
               },
               {
                 "type": "container",
@@ -238,7 +264,7 @@
                   "fontSize": "12",
                   "color": "#888888"
                 },
-                "dataUid": "uid-21"
+                "dataUid": "uid-23"
               },
               {
                 "type": "container",
@@ -248,7 +274,7 @@
                   "name": "spacer3",
                   "height": "4"
                 },
-                "dataUid": "uid-22"
+                "dataUid": "uid-24"
               },
               {
                 "type": "container",
@@ -261,7 +287,7 @@
                   "fontSize": "14",
                   "color": "#ffaa00"
                 },
-                "dataUid": "uid-23"
+                "dataUid": "uid-25"
               },
               {
                 "type": "container",
@@ -274,7 +300,7 @@
                   "fontSize": "12",
                   "color": "#888888"
                 },
-                "dataUid": "uid-24"
+                "dataUid": "uid-26"
               },
               {
                 "type": "container",
@@ -287,7 +313,7 @@
                   "fontSize": "12",
                   "color": "#888888"
                 },
-                "dataUid": "uid-25"
+                "dataUid": "uid-27"
               },
               {
                 "type": "container",
@@ -300,7 +326,7 @@
                   "fontSize": "12",
                   "color": "#888888"
                 },
-                "dataUid": "uid-26"
+                "dataUid": "uid-28"
               },
               {
                 "type": "container",
@@ -313,7 +339,7 @@
                   "fontSize": "12",
                   "color": "#888888"
                 },
-                "dataUid": "uid-27"
+                "dataUid": "uid-29"
               }
             ],
             "properties": {
@@ -336,7 +362,7 @@
               "color": "#888888",
               "hoverOpacity": "0.7"
             },
-            "dataUid": "uid-28"
+            "dataUid": "uid-30"
           }
         ],
         "properties": {
@@ -363,7 +389,7 @@
         "column": 0
       },
       "end": {
-        "line": 30,
+        "line": 32,
         "column": 8
       }
     },
@@ -373,7 +399,7 @@
         "column": 2
       },
       "end": {
-        "line": 29,
+        "line": 31,
         "column": 8
       }
     },
@@ -393,7 +419,7 @@
         "column": 4
       },
       "end": {
-        "line": 27,
+        "line": 29,
         "column": 10
       }
     },
@@ -474,7 +500,7 @@
       },
       "end": {
         "line": 11,
-        "column": 42
+        "column": 93
       }
     },
     "uid-13": {
@@ -484,7 +510,7 @@
       },
       "end": {
         "line": 12,
-        "column": 76
+        "column": 94
       }
     },
     "uid-14": {
@@ -494,7 +520,7 @@
       },
       "end": {
         "line": 13,
-        "column": 86
+        "column": 42
       }
     },
     "uid-15": {
@@ -504,7 +530,7 @@
       },
       "end": {
         "line": 14,
-        "column": 72
+        "column": 76
       }
     },
     "uid-16": {
@@ -514,7 +540,7 @@
       },
       "end": {
         "line": 15,
-        "column": 71
+        "column": 86
       }
     },
     "uid-17": {
@@ -524,7 +550,7 @@
       },
       "end": {
         "line": 16,
-        "column": 43
+        "column": 72
       }
     },
     "uid-18": {
@@ -534,7 +560,7 @@
       },
       "end": {
         "line": 17,
-        "column": 70
+        "column": 71
       }
     },
     "uid-19": {
@@ -544,7 +570,7 @@
       },
       "end": {
         "line": 18,
-        "column": 85
+        "column": 43
       }
     },
     "uid-20": {
@@ -554,7 +580,7 @@
       },
       "end": {
         "line": 19,
-        "column": 75
+        "column": 70
       }
     },
     "uid-21": {
@@ -564,7 +590,7 @@
       },
       "end": {
         "line": 20,
-        "column": 68
+        "column": 85
       }
     },
     "uid-22": {
@@ -574,7 +600,7 @@
       },
       "end": {
         "line": 21,
-        "column": 43
+        "column": 75
       }
     },
     "uid-23": {
@@ -584,7 +610,7 @@
       },
       "end": {
         "line": 22,
-        "column": 70
+        "column": 68
       }
     },
     "uid-24": {
@@ -594,7 +620,7 @@
       },
       "end": {
         "line": 23,
-        "column": 93
+        "column": 43
       }
     },
     "uid-25": {
@@ -604,7 +630,7 @@
       },
       "end": {
         "line": 24,
-        "column": 94
+        "column": 70
       }
     },
     "uid-26": {
@@ -614,7 +640,7 @@
       },
       "end": {
         "line": 25,
-        "column": 90
+        "column": 93
       }
     },
     "uid-27": {
@@ -624,16 +650,36 @@
       },
       "end": {
         "line": 26,
-        "column": 85
+        "column": 94
       }
     },
     "uid-28": {
       "start": {
+        "line": 27,
+        "column": 6
+      },
+      "end": {
+        "line": 27,
+        "column": 90
+      }
+    },
+    "uid-29": {
+      "start": {
         "line": 28,
-        "column": 4
+        "column": 6
       },
       "end": {
         "line": 28,
+        "column": 85
+      }
+    },
+    "uid-30": {
+      "start": {
+        "line": 30,
+        "column": 4
+      },
+      "end": {
+        "line": 30,
         "column": 90
       }
     }

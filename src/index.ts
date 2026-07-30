@@ -151,6 +151,29 @@ interface ScorePopup {
   maxLife: number;
 }
 
+interface ConveyorBelt {
+  row: number;
+  direction: number; // -1 left, 1 right
+  speed: number;
+  arrowMeshes: Mesh[];
+  arrowTimer: number;
+}
+
+interface SpeedBoost {
+  mesh: Group;
+  x: number;
+  y: number;
+  row: number;
+  active: boolean;
+  bobTimer: number;
+}
+
+interface Afterimage {
+  mesh: Mesh;
+  life: number;
+  maxLife: number;
+}
+
 interface GameState {
   mode: string;
   difficulty: string;
@@ -199,6 +222,11 @@ interface GameState {
   // Screen shake
   shakeTimer: number;
   shakeIntensity: number;
+  // Speed boost
+  hasSpeedBoost: boolean;
+  speedBoostTimer: number;
+  // Conveyor belts
+  conveyorBelts: ConveyorBelt[];
   // Career
   careerGames: number;
   careerSmashed: number;
@@ -249,6 +277,11 @@ const ALL_ACHIEVEMENTS = [
   { id: 'patrol_dodge', name: 'Ladder Ninja', desc: 'Pass 3 ladder patrols without dying' },
   { id: 'level_15', name: 'Apex Climber', desc: 'Reach level 15' },
   { id: 'score_50k', name: 'Neon Legend', desc: 'Score 50,000 points' },
+  { id: 'speed_collect', name: 'Turbo Charged', desc: 'Collect a speed boost' },
+  { id: 'speed_clear', name: 'Lightning Climber', desc: 'Clear a level with speed boost active' },
+  { id: 'conveyor_survive', name: 'Belt Runner', desc: 'Survive 3 conveyor belt levels' },
+  { id: 'combo_no_break', name: 'Relentless', desc: 'Keep a combo going for 10 seconds' },
+  { id: 'score_100k', name: 'Neon God', desc: 'Score 100,000 points' },
 ];
 
 let state: GameState;
@@ -273,6 +306,10 @@ let scorePopups: ScorePopup[] = [];
 let bonusCollectedGame = 0;
 let bonusCollectedTotal = 0;
 let patrolsPassed = 0;
+let conveyorLevelsSurvived = 0;
+let comboStartTime = 0;
+let speedBoosts: SpeedBoost[] = [];
+let afterimages: Afterimage[] = [];
 let cameraBasePos = new Vector3(0, 0, 8);
 
 // Audio
@@ -438,6 +475,24 @@ function playSound(type: string) {
       gain.gain.linearRampToValueAtTime(0, now + 0.25);
       osc.start(now); osc.stop(now + 0.25);
       break;
+    case 'speed_boost':
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(300, now);
+      osc.frequency.linearRampToValueAtTime(600, now + 0.08);
+      osc.frequency.linearRampToValueAtTime(900, now + 0.16);
+      osc.frequency.linearRampToValueAtTime(1200, now + 0.24);
+      gain.gain.setValueAtTime(0.12, now);
+      gain.gain.linearRampToValueAtTime(0, now + 0.35);
+      osc.start(now); osc.stop(now + 0.35);
+      break;
+    case 'conveyor_hum':
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(100, now);
+      osc.frequency.linearRampToValueAtTime(110, now + 0.15);
+      gain.gain.setValueAtTime(0.04, now);
+      gain.gain.linearRampToValueAtTime(0, now + 0.2);
+      osc.start(now); osc.stop(now + 0.2);
+      break;
   }
 }
 
@@ -452,20 +507,36 @@ function startMusic() {
   musicGain.gain.setValueAtTime(0.03, audioCtx.currentTime);
   musicGain.connect(audioCtx.destination);
 
+  // Bass note — pitch rises with level
+  const baseFreq = 55 + (state.level - 1) * 5;
   musicOsc1 = audioCtx.createOscillator();
   musicOsc1.type = 'sine';
-  musicOsc1.frequency.setValueAtTime(55, audioCtx.currentTime);
+  musicOsc1.frequency.setValueAtTime(baseFreq, audioCtx.currentTime);
   musicOsc1.connect(musicGain);
   musicOsc1.start();
 
+  // Harmonic layer
   musicOsc2 = audioCtx.createOscillator();
   musicOsc2.type = 'triangle';
-  musicOsc2.frequency.setValueAtTime(110, audioCtx.currentTime);
+  musicOsc2.frequency.setValueAtTime(baseFreq * 2, audioCtx.currentTime);
   const g2 = audioCtx.createGain();
-  g2.gain.setValueAtTime(0.02, audioCtx.currentTime);
+  g2.gain.setValueAtTime(0.02 + state.level * 0.002, audioCtx.currentTime);
   musicOsc2.connect(g2);
   g2.connect(audioCtx.destination);
   musicOsc2.start();
+}
+
+function updateMusicTension() {
+  // Evolve music with level — called on level change
+  if (!audioCtx || !musicOsc1 || !musicOsc2) return;
+  const now = audioCtx.currentTime;
+  const baseFreq = 55 + (state.level - 1) * 5;
+  musicOsc1.frequency.linearRampToValueAtTime(baseFreq, now + 0.5);
+  musicOsc2.frequency.linearRampToValueAtTime(baseFreq * 2, now + 0.5);
+  if (musicGain) {
+    // Slight volume increase with level tension
+    musicGain.gain.linearRampToValueAtTime(Math.min(0.06, 0.03 + state.level * 0.003), now + 0.5);
+  }
 }
 
 function stopMusic() {
@@ -1122,6 +1193,9 @@ function initState(): GameState {
     shieldHitsLeft: 0,
     shakeTimer: 0,
     shakeIntensity: 0,
+    hasSpeedBoost: false,
+    speedBoostTimer: 0,
+    conveyorBelts: [],
     careerGames: career.careerGames || 0,
     careerSmashed: career.careerSmashed || 0,
     careerJumped: career.careerJumped || 0,
@@ -1156,10 +1230,15 @@ function startGame() {
   state.springs = [];
   state.shakeTimer = 0;
   state.shakeIntensity = 0;
+  state.hasSpeedBoost = false;
+  state.speedBoostTimer = 0;
+  state.conveyorBelts = [];
   fireBarrelsDodged = 0;
   springJumped = false;
   levelHammerUsed = false;
   bonusCollectedGame = 0;
+  conveyorLevelsSurvived = 0;
+  comboStartTime = 0;
   patrolsPassed = 0;
   state.timeRemaining = 120;
   state.movesRemaining = 200;
@@ -1188,15 +1267,22 @@ function setupLevel() {
   for (const sh of shields) scene.remove(sh.mesh);
   for (const bi of bonusItems) scene.remove(bi.mesh);
   for (const lp of ladderPatrols) scene.remove(lp.mesh);
+  for (const sb of speedBoosts) scene.remove(sb.mesh);
+  for (const ai of afterimages) { scene.remove(ai.mesh); ai.mesh.geometry.dispose(); (ai.mesh.material as MeshBasicMaterial).dispose(); }
+  // Clean up conveyor arrows
+  for (const cb of state.conveyorBelts) { for (const am of cb.arrowMeshes) { scene.remove(am); am.geometry.dispose(); (am.material as MeshBasicMaterial).dispose(); } }
   for (const sp of scorePopups) { scene.remove(sp.mesh); sp.mesh.geometry.dispose(); (sp.mesh.material as MeshBasicMaterial).dispose(); }
   state.barrels = [];
   state.fireBarrels = [];
   state.fireTrails = [];
   state.springs = [];
+  state.conveyorBelts = [];
   shields = [];
   bonusItems = [];
   ladderPatrols = [];
   scorePopups = [];
+  speedBoosts = [];
+  afterimages = [];
 
   const { platforms, ladders, hammers } = generateLevel(state.level);
   state.platforms = platforms;
@@ -1340,6 +1426,101 @@ function setupLevel() {
       });
     }
   }
+
+  // Conveyor belt platforms (level 5+)
+  if (state.level >= 5) {
+    const beltCount = Math.min(3, Math.floor((state.level - 4) / 2) + 1);
+    const usedRows = new Set<number>();
+    for (let b = 0; b < beltCount; b++) {
+      // Pick a row that isn't bottom, top, or already used
+      const candidates = [];
+      for (let r = 1; r < ROWS - 1; r++) {
+        if (!usedRows.has(r)) candidates.push(r);
+      }
+      if (candidates.length === 0) break;
+      const row = candidates[Math.floor(Math.random() * candidates.length)];
+      usedRows.add(row);
+      const dir = Math.random() > 0.5 ? 1 : -1;
+      const speed = 1.0 + state.level * 0.1;
+      const plat = platforms[row];
+      
+      // Create arrow indicators on the platform
+      const arrowMeshes: Mesh[] = [];
+      const arrowCount = 4;
+      for (let a = 0; a < arrowCount; a++) {
+        const ax = plat.mesh.position.x + (a - arrowCount / 2 + 0.5) * (CELL * 1.5);
+        const ay = plat.y + PLATFORM_H / 2 + 0.02;
+        // Arrow as a small triangle using CylinderGeometry(0, radius, height, 3) 
+        const arrowGeo = new CylinderGeometry(0, 0.08, 0.15, 3);
+        const arrowMat = new MeshBasicMaterial({
+          color: new Color(dir > 0 ? '#ffaa00' : '#ff6600'),
+          transparent: true,
+          opacity: 0.6,
+        });
+        const arrow = new Mesh(arrowGeo, arrowMat);
+        arrow.rotation.z = dir > 0 ? -Math.PI / 2 : Math.PI / 2;
+        arrow.rotation.x = -Math.PI / 2;
+        arrow.position.set(ax, ay, 0.1);
+        scene.add(arrow);
+        arrowMeshes.push(arrow);
+      }
+
+      // Tint the platform with a subtle conveyor color
+      const platMat = plat.mesh.material as MeshStandardMaterial;
+      platMat.emissiveIntensity = 0.5;
+
+      state.conveyorBelts.push({
+        row,
+        direction: dir,
+        speed,
+        arrowMeshes,
+        arrowTimer: 0,
+      });
+    }
+  }
+
+  // Speed boost power-up (level 3+)
+  if (state.level >= 3) {
+    const boostRow = 2 + Math.floor(Math.random() * (ROWS - 4));
+    const boostCol = Math.floor(Math.random() * (COLS - 2)) + 1;
+    const bx = (boostCol - COLS / 2 + 0.5) * CELL;
+    const by = platforms[boostRow].y + PLATFORM_H / 2 + 0.25;
+    const boostGroup = new Group();
+    
+    // Lightning bolt shape — vertical cylinder with glow
+    const boltGeo = new CylinderGeometry(0.04, 0.04, 0.3, 4);
+    const boltMat = new MeshStandardMaterial({
+      color: new Color('#ffff00'),
+      emissive: new Color('#ffff00'),
+      emissiveIntensity: 0.9,
+    });
+    const bolt = new Mesh(boltGeo, boltMat);
+    bolt.rotation.z = Math.PI / 6;
+    boostGroup.add(bolt);
+    
+    const boltGeo2 = new CylinderGeometry(0.04, 0.04, 0.25, 4);
+    const bolt2 = new Mesh(boltGeo2, boltMat);
+    bolt2.rotation.z = -Math.PI / 6;
+    bolt2.position.set(0.05, -0.12, 0);
+    boostGroup.add(bolt2);
+    
+    // Glow sphere
+    const glowGeo = new SphereGeometry(0.2, 6, 4);
+    const glowMat = new MeshBasicMaterial({
+      color: new Color('#ffff00'),
+      transparent: true,
+      opacity: 0.15,
+    });
+    const glow = new Mesh(glowGeo, glowMat);
+    boostGroup.add(glow);
+    
+    boostGroup.position.set(bx, by, 0.1);
+    scene.add(boostGroup);
+    speedBoosts.push({ mesh: boostGroup, x: bx, y: by, row: boostRow, active: true, bobTimer: Math.random() * Math.PI * 2 });
+  }
+
+  // Update music tension for new level
+  updateMusicTension();
 }
 
 function spawnBarrel() {
@@ -1390,9 +1571,48 @@ function spawnBarrel() {
   levelBarrelCount++;
 }
 
+// ─── AFTERIMAGE TRAIL ───
+function spawnAfterimage(scene: import('@iwsdk/core').Scene, x: number, y: number, facing: number) {
+  const sch = SCHEMES[state.scheme];
+  const pColor = new Color(sch.primary);
+  const geo = new CylinderGeometry(PLAYER_R * 0.5, PLAYER_R * 0.4, PLAYER_R * 1.8, 6);
+  const mat = new MeshBasicMaterial({
+    color: pColor,
+    transparent: true,
+    opacity: 0.3,
+  });
+  const mesh = new Mesh(geo, mat);
+  mesh.position.set(x, y, -0.1);
+  mesh.scale.x = facing;
+  scene.add(mesh);
+  afterimages.push({ mesh, life: 0.3, maxLife: 0.3 });
+}
+
+function updateAfterimages(scene: import('@iwsdk/core').Scene, delta: number) {
+  for (let i = afterimages.length - 1; i >= 0; i--) {
+    const ai = afterimages[i];
+    ai.life -= delta;
+    if (ai.life <= 0) {
+      scene.remove(ai.mesh);
+      ai.mesh.geometry.dispose();
+      (ai.mesh.material as MeshBasicMaterial).dispose();
+      afterimages.splice(i, 1);
+      continue;
+    }
+    const alpha = (ai.life / ai.maxLife) * 0.3;
+    (ai.mesh.material as MeshBasicMaterial).opacity = alpha;
+    const scale = 1 - (1 - ai.life / ai.maxLife) * 0.3;
+    ai.mesh.scale.y = scale;
+    ai.mesh.scale.z = scale;
+  }
+}
+
 function addScore(points: number) {
   state.combo++;
   state.comboTimer = 3;
+  if (state.combo === 1) comboStartTime = performance.now() / 1000;
+  const comboElapsed = performance.now() / 1000 - comboStartTime;
+  if (comboElapsed >= 10 && state.combo > 1) checkAchievement('combo_no_break');
   const mult = Math.min(state.combo, 8);
   state.score += points * mult;
   if (mult >= 3) { checkAchievement('combo_3'); playSound('combo'); }
@@ -1405,6 +1625,7 @@ function addScore(points: number) {
   if (state.score >= 10000) checkAchievement('score_10k');
   if (state.score >= 25000) checkAchievement('score_25k');
   if (state.score >= 50000) checkAchievement('score_50k');
+  if (state.score >= 100000) checkAchievement('score_100k');
 }
 
 function playerDeath() {
@@ -1438,6 +1659,8 @@ function playerDeath() {
   state.hasHammer = false;
   state.hammerTimer = 0;
   state.combo = 0;
+  state.hasSpeedBoost = false;
+  state.speedBoostTimer = 0;
 
   if (state.lives <= 0) {
     state.status = 'gameover';
@@ -1480,6 +1703,11 @@ function levelClear() {
 
   if (state.difficulty === 'hard' && state.level === 1) checkAchievement('hard_clear');
   if (state.difficulty === 'insane' && state.level === 1) checkAchievement('insane_clear');
+  if (state.conveyorBelts.length > 0) {
+    conveyorLevelsSurvived++;
+    if (conveyorLevelsSurvived >= 3) checkAchievement('conveyor_survive');
+  }
+  if (state.hasSpeedBoost) checkAchievement('speed_clear');
 
   state.level++;
   saveCareer();
@@ -1578,6 +1806,7 @@ class GameSystem extends createSystem({}) {
   private climbTimer = 0;
   private orbTimer = 0;
   private kongAnimTimer = 0;
+  private afterimageTimer = 0;
 
   update(delta: number, _time: number) {
     if (state.status !== 'playing') {
@@ -1599,7 +1828,7 @@ class GameSystem extends createSystem({}) {
     // Combo timer
     if (state.comboTimer > 0) {
       state.comboTimer -= delta;
-      if (state.comboTimer <= 0) state.combo = 0;
+      if (state.comboTimer <= 0) { state.combo = 0; comboStartTime = 0; }
     }
 
     // Mode timers
@@ -1697,8 +1926,9 @@ class GameSystem extends createSystem({}) {
       }
     } else {
       // Horizontal movement
+      const speedMult = state.hasSpeedBoost ? 1.6 : 1.0;
       if (moveX !== 0) {
-        state.playerX += moveX * MOVE_SPEED * delta;
+        state.playerX += moveX * MOVE_SPEED * speedMult * delta;
         state.playerFacing = moveX;
 
         if (state.mode === 'challenge') {
@@ -1716,6 +1946,30 @@ class GameSystem extends createSystem({}) {
         if (this.walkTimer <= 0 && state.playerOnGround) {
           playSound('walk');
           this.walkTimer = 0.25;
+        }
+
+        // Spawn afterimage trail when speed boosted and moving
+        if (state.hasSpeedBoost) {
+          this.afterimageTimer -= delta;
+          if (this.afterimageTimer <= 0) {
+            spawnAfterimage(scene, state.playerX, state.playerY, state.playerFacing);
+            this.afterimageTimer = 0.06;
+          }
+        }
+      }
+
+      // ─── CONVEYOR BELT PUSH ───
+      for (const cb of state.conveyorBelts) {
+        if (state.playerPlatformRow === cb.row && state.playerOnGround) {
+          state.playerX += cb.direction * cb.speed * delta;
+        }
+        // Animate arrows (slide effect)
+        cb.arrowTimer += delta * cb.speed * 2;
+        for (let ai = 0; ai < cb.arrowMeshes.length; ai++) {
+          const am = cb.arrowMeshes[ai];
+          const phase = (cb.arrowTimer + ai * 0.5) % 2;
+          const opacity = phase < 1 ? phase * 0.6 : (2 - phase) * 0.6;
+          (am.material as MeshBasicMaterial).opacity = opacity;
         }
       }
 
@@ -1789,6 +2043,34 @@ class GameSystem extends createSystem({}) {
       if (state.shieldTimer <= 0) {
         state.hasShield = false;
         state.shieldHitsLeft = 0;
+      }
+    }
+
+    // Speed boost timer
+    if (state.hasSpeedBoost) {
+      state.speedBoostTimer -= delta;
+      if (state.speedBoostTimer <= 0) {
+        state.hasSpeedBoost = false;
+      }
+    }
+
+    // ─── SPEED BOOST PICKUP ───
+    for (const sb of speedBoosts) {
+      if (!sb.active) continue;
+      sb.bobTimer += delta * 4;
+      sb.mesh.position.y = sb.y + Math.sin(sb.bobTimer) * 0.06;
+      sb.mesh.rotation.y += delta * 3;
+      const dx = state.playerX - sb.x;
+      const dy = state.playerY - sb.y;
+      if (Math.sqrt(dx * dx + dy * dy) < 0.5 && state.playerPlatformRow === sb.row) {
+        sb.active = false;
+        sb.mesh.visible = false;
+        scene.remove(sb.mesh);
+        state.hasSpeedBoost = true;
+        state.speedBoostTimer = 6;
+        playSound('speed_boost');
+        spawnParticles(scene, sb.x, sb.y, '#ffff00', 10);
+        checkAchievement('speed_collect');
       }
     }
 
@@ -2312,6 +2594,9 @@ class GameSystem extends createSystem({}) {
 
     // Particles
     updateParticles(scene, delta);
+
+    // Afterimages
+    updateAfterimages(scene, delta);
   }
 }
 
@@ -2479,6 +2764,7 @@ class UISystem extends createSystem({
       }
       this.setText(this.hudDoc, 'hammer-val', state.hasHammer ? 'HAMMER ' + Math.ceil(state.hammerTimer) + 's' : '');
       this.setText(this.hudDoc, 'shield-val', state.hasShield ? 'SHIELD x' + state.shieldHitsLeft : '');
+      this.setText(this.hudDoc, 'speed-val', state.hasSpeedBoost ? 'TURBO ' + Math.ceil(state.speedBoostTimer) + 's' : '');
     }
 
     // Update menu high score

@@ -218,6 +218,30 @@
               "alignItems": "center"
             },
             "dataUid": "uid-18"
+          },
+          {
+            "type": "container",
+            "sourceTag": "div",
+            "children": [
+              {
+                "type": "container",
+                "sourceTag": "div",
+                "children": [],
+                "properties": {
+                  "name": "speed-val",
+                  "fontSize": "14",
+                  "color": "#ffff00",
+                  "fontWeight": "bold"
+                },
+                "dataUid": "uid-21"
+              }
+            ],
+            "properties": {
+              "name": "speed-block",
+              "flexDirection": "column",
+              "alignItems": "center"
+            },
+            "dataUid": "uid-20"
           }
         ],
         "properties": {
@@ -242,7 +266,7 @@
         "column": 0
       },
       "end": {
-        "line": 27,
+        "line": 30,
         "column": 8
       }
     },
@@ -252,7 +276,7 @@
         "column": 2
       },
       "end": {
-        "line": 26,
+        "line": 29,
         "column": 8
       }
     },
@@ -424,6 +448,26 @@
       "end": {
         "line": 24,
         "column": 85
+      }
+    },
+    "uid-20": {
+      "start": {
+        "line": 26,
+        "column": 4
+      },
+      "end": {
+        "line": 28,
+        "column": 10
+      }
+    },
+    "uid-21": {
+      "start": {
+        "line": 27,
+        "column": 6
+      },
+      "end": {
+        "line": 27,
+        "column": 84
       }
     }
   }

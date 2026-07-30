@@ -24,5 +24,8 @@
     <div name="shield-block" flex-direction="column" align-items="center">
       <div name="shield-val" font-size="14" color="#4488ff" font-weight="bold"></div>
     </div>
+    <div name="speed-block" flex-direction="column" align-items="center">
+      <div name="speed-val" font-size="14" color="#ffff00" font-weight="bold"></div>
+    </div>
   </div>
 </panel>
